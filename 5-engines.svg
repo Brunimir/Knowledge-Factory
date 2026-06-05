@@ -25,7 +25,7 @@
   <text x="490"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT</text>
   <text x="805"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT</text>
   <text x="1120" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT <tspan fill="#8a8275">+</tspan> <tspan fill="#7a2230">HUMAN</tspan></text>
-  <text x="1435" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT <tspan fill="#8a8275">+</tspan> <tspan fill="#7a2230">HUMAN</tspan></text>
+  <text x="1435" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#7a2230">HUMAN <tspan fill="#8a8275">+</tspan> <tspan fill="#2f5d3a">AGENT</tspan></text>
 
   <!-- ===================== boxes ===================== -->
   <!-- 01 Capture (human) -->
