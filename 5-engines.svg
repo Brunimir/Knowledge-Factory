@@ -16,7 +16,7 @@
   <text x="42" y="470" font-family="'Segoe UI', Arial, sans-serif" font-size="15" font-weight="bold" letter-spacing="1" fill="#8a8275">STORED IN</text>
 
   <!-- ===================== Human verification gate (OPTIONAL) ===================== -->
-  <line x1="962" y1="66" x2="962" y2="472" stroke="#7a2230" stroke-width="2" stroke-dasharray="7 7" opacity="0.55"/>
+  <line x1="962" y1="66" x2="962" y2="400" stroke="#7a2230" stroke-width="2" stroke-dasharray="7 7" opacity="0.55"/>
   <text x="962" y="34" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="bold" fill="#7a2230">Human verification</text>
   <text x="962" y="54" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" font-style="italic" fill="#7a2230" opacity="0.85">— optional —</text>
 
@@ -24,7 +24,7 @@
   <text x="175"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#7a2230">HUMAN</text>
   <text x="490"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT</text>
   <text x="805"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT</text>
-  <text x="1120" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT</text>
+  <text x="1120" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT <tspan fill="#8a8275">+</tspan> <tspan fill="#7a2230">HUMAN</tspan></text>
   <text x="1435" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT <tspan fill="#8a8275">+</tspan> <tspan fill="#7a2230">HUMAN</tspan></text>
 
   <!-- ===================== boxes ===================== -->
@@ -47,7 +47,7 @@
   <text x="805" y="309" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#6b6256">Wikilinks &amp; MOCs</text>
 
   <!-- 04 Retain (agent) — OPTIONAL: dashed border -->
-  <rect x="1005" y="175" width="230" height="210" rx="18" fill="#faf7f1" stroke="#2f5d3a" stroke-width="2.5" stroke-dasharray="9 6"/>
+  <rect x="1005" y="175" width="230" height="210" rx="18" fill="#faf7f1" stroke="#2f5d3a" stroke-width="2.5"/>
   <text x="1120" y="234" text-anchor="middle" font-size="24" fill="#7a2230">04</text>
   <text x="1120" y="272" text-anchor="middle" font-size="30" font-weight="600" fill="#3a332b">Retain</text>
   <text x="1120" y="305" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#6b6256">Anki flashcards</text>
