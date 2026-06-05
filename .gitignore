@@ -1,0 +1,21 @@
+﻿# Secrets & local config
+.env
+.env.*
+!.env.example
+config.local.*
+*.secret
+
+# Generated artefacts
+**/VAULT_INDEX.json
+**/FLASHCARD_RUN_RESULT.json
+**/FLASHCARD_CANDIDATES.json
+**/DIAGRAM_CANDIDATES_*.json
+**/DIAGRAM_RUN_RESULT.json
+**/VAULT_HEALTH_REPORT.md
+**/VAULT_GAPS_REPORT.md
+**/MMDC_MODE.txt
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1620 705" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="14" markerHeight="14" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M1,1 L11,6 L1,11 z" fill="#b7ae9e"/>
+    </marker>
+    <marker id="arrowGem" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="13" markerHeight="13" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M1,1 L11,6 L1,11 z" fill="#9a7b34"/>
+    </marker>
+  </defs>
+
+  <!-- background -->
+  <rect x="0" y="0" width="1620" height="705" fill="#f1ebe0"/>
+
+  <!-- row labels (left) -->
+  <text x="42" y="112" font-family="'Segoe UI', Arial, sans-serif" font-size="15" font-weight="bold" letter-spacing="1" fill="#8a8275">OWNER</text>
+  <text x="42" y="470" font-family="'Segoe UI', Arial, sans-serif" font-size="15" font-weight="bold" letter-spacing="1" fill="#8a8275">STORED IN</text>
+
+  <!-- ===================== Human verification gate (OPTIONAL) ===================== -->
+  <line x1="962" y1="66" x2="962" y2="472" stroke="#7a2230" stroke-width="2" stroke-dasharray="7 7" opacity="0.55"/>
+  <text x="962" y="34" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="bold" fill="#7a2230">Human verification</text>
+  <text x="962" y="54" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" font-style="italic" fill="#7a2230" opacity="0.85">— optional —</text>
+
+  <!-- ===================== owner labels ===================== -->
+  <text x="175"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#7a2230">HUMAN</text>
+  <text x="490"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT</text>
+  <text x="805"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT</text>
+  <text x="1120" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT</text>
+  <text x="1435" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT <tspan fill="#8a8275">+</tspan> <tspan fill="#7a2230">HUMAN</tspan></text>
+
+  <!-- ===================== boxes ===================== -->
+  <!-- 01 Capture (human) -->
+  <rect x="60"   y="175" width="230" height="210" rx="18" fill="#faf7f1" stroke="#7a2230" stroke-width="2.5"/>
+  <text x="175" y="234" text-anchor="middle" font-size="24" fill="#7a2230">01</text>
+  <text x="175" y="274" text-anchor="middle" font-size="30" font-weight="600" fill="#3a332b">Capture</text>
+  <text x="175" y="309" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#6b6256">Frictionless inbox</text>
+
+  <!-- 02 Process (agent) -->
+  <rect x="375"  y="175" width="230" height="210" rx="18" fill="#faf7f1" stroke="#2f5d3a" stroke-width="2.5"/>
+  <text x="490" y="234" text-anchor="middle" font-size="24" fill="#7a2230">02</text>
+  <text x="490" y="274" text-anchor="middle" font-size="30" font-weight="600" fill="#3a332b">Process</text>
+  <text x="490" y="309" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#6b6256">Atomic notes</text>
+
+  <!-- 03 Interconnect (agent) -->
+  <rect x="690"  y="175" width="230" height="210" rx="18" fill="#faf7f1" stroke="#2f5d3a" stroke-width="2.5"/>
+  <text x="805" y="234" text-anchor="middle" font-size="24" fill="#7a2230">03</text>
+  <text x="805" y="274" text-anchor="middle" font-size="30" font-weight="600" fill="#3a332b">Interconnect</text>
+  <text x="805" y="309" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#6b6256">Wikilinks &amp; MOCs</text>
+
+  <!-- 04 Retain (agent) — OPTIONAL: dashed border -->
+  <rect x="1005" y="175" width="230" height="210" rx="18" fill="#faf7f1" stroke="#2f5d3a" stroke-width="2.5" stroke-dasharray="9 6"/>
+  <text x="1120" y="234" text-anchor="middle" font-size="24" fill="#7a2230">04</text>
+  <text x="1120" y="272" text-anchor="middle" font-size="30" font-weight="600" fill="#3a332b">Retain</text>
+  <text x="1120" y="305" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#6b6256">Anki flashcards</text>
+  <text x="1120" y="333" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="15" font-style="italic" fill="#2f5d3a">(optional)</text>
+
+  <!-- 05 Produce (agent + human) -->
+  <rect x="1320" y="175" width="230" height="210" rx="18" fill="#faf7f1" stroke="#7a2230" stroke-width="2.5"/>
+  <text x="1435" y="234" text-anchor="middle" font-size="24" fill="#7a2230">05</text>
+  <text x="1435" y="274" text-anchor="middle" font-size="30" font-weight="600" fill="#3a332b">Produce</text>
+  <text x="1435" y="309" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#6b6256">Deliverables</text>
+
+  <!-- ===================== arrows ===================== -->
+  <!-- solid backbone -->
+  <line x1="296"  y1="282" x2="369"  y2="282" stroke="#b7ae9e" stroke-width="6" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <line x1="611"  y1="282" x2="684"  y2="282" stroke="#b7ae9e" stroke-width="6" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <!-- into Retain: optional (dashed) -->
+  <line x1="926"  y1="282" x2="999"  y2="282" stroke="#b7ae9e" stroke-width="6" stroke-linecap="round" stroke-dasharray="3 8" marker-end="url(#arrow)"/>
+  <!-- out of Retain: optional (dashed) -->
+  <line x1="1241" y1="282" x2="1314" y2="282" stroke="#b7ae9e" stroke-width="6" stroke-linecap="round" stroke-dasharray="3 8" marker-end="url(#arrow)"/>
+
+  <!-- bypass arc: Interconnect -> Produce, skipping Retain (OPTIONAL) -->
+  <path d="M805,388 V424 Q805,432 813,432 H1427 Q1435,432 1435,424 V393" fill="none" stroke="#b7ae9e" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#arrow)"/>
+  <text x="1120" y="453" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" font-style="italic" fill="#6b6256">skip Retain — when a note is captured for reference only and needs no study</text>
+
+  <!-- ===================== stored-in labels ===================== -->
+  <text x="175"  y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">00_Inbox/</text>
+  <text x="490"  y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">21_Concepts/</text>
+  <text x="805"  y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">22_Maps_of_Content/</text>
+  <text x="1120" y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">23_FlashCards/</text>
+  <text x="1435" y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">40_Solutions/</text>
+
+  <!-- ===================== gem-capture feedback loop (the flywheel) ===================== -->
+  <path d="M1550,282 H1582 Q1590,282 1590,290 V592 Q1590,600 1582,600 H30 Q22,600 22,592 V290 Q22,282 30,282 H60"
+        fill="none" stroke="#9a7b34" stroke-width="2.5" stroke-dasharray="8 6" opacity="0.9" marker-end="url(#arrowGem)"/>
+  <text x="806" y="585" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="15" font-style="italic" fill="#9a7b34">Gem capture (extract-gems) — new insights from conversations become input in the inbox</text>
+
+  <!-- ===================== captions ===================== -->
+  <text x="810" y="655" text-anchor="middle" font-size="21" font-style="italic" fill="#5b5347">Each engine has one job, one quality gate, and one place where its output lives.</text>
+  <text x="810" y="683" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="#8a8275">Retain and human verification are optional — a concept may rest unreviewed, and not every note becomes a flashcard.</text>
+</svg>
