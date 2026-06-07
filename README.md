@@ -10,6 +10,8 @@ A built-in capacity model keeps the *learning* load honest. Because concepts can
 
 > This repository ships the **engine** — templates, extraction prompts, Claude Code skills, and orchestration scripts. You bring your own Obsidian vault; the system installs *over* it. The only vault content included is **one worked example** (the *Learning & Memory* MOC and its 11 concept notes under `20_Learning/`), so you can see real output.
 
+*If you're a student, researcher, or professional trying to learn faster and retain more — the Knowledge Factory is for you.*
+
 ---
 
 ## 1. The Pipeline
@@ -149,6 +151,8 @@ To show real output — not just empty templates — the repo ships one fully-bu
 - **[Anki](https://apps.ankiweb.net/) + [AnkiConnect](https://ankiweb.net/shared/info/2055492159)** — flashcard review and sync.
 - **Obsidian plugins:** `flashcards-obsidian` (card sync) and `Advanced URI` (triggering sync from the launcher).
 - **[Node.js](https://nodejs.org/) + `@mermaid-js/mermaid-cli` (`mmdc`)** — only needed for `visualise-moc` diagram rendering (the launcher falls back to `npx`).
+
+> *You can ask your Claude to walk you through this section step by step — paste this README and say "help me set up the Knowledge Factory in my Obsidian vault."*
 
 ### Install
 
