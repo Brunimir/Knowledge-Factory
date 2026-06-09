@@ -203,6 +203,7 @@ A typical weekly cycle: capture during the week → `process-inbox` → review a
 ├─ launch-visualise-moc.ps1       # Interconnect (diagram) launcher
 ├─ extract_diagram_candidates.ps1  # Pre-extracts the per-MOC diagram manifest
 ├─ extract_flashcard_candidates.ps1# Pre-extracts the flashcard candidate manifest
+├─ requirements.txt               # Python dependencies (graphifyy + transitive)
 ├─ .env.example                   # Environment template (copy to .env)
 ├─ 99_System/
 │  ├─ Readme.md                   # Core PKM philosophy / global rules
@@ -215,6 +216,7 @@ A typical weekly cycle: capture during the week → `process-inbox` → review a
 │     ├─ gem-extraction/SKILL.md  # Capture
 │     ├─ pkm-ingestion/SKILL.md   # Process
 │     ├─ pkm-review/SKILL.md      # Interconnect (vault-health)
+│     ├─ vault-graph/SKILL.md     # Interconnect (similarity + graph topology)
 │     ├─ pkm-flashcards/SKILL.md  # Retain (flashcards)
 │     └─ pkm-solution/SKILL.md    # Produce (solutions)
 ├─ docs/                          # Full phase specifications (read by CLAUDE.md)

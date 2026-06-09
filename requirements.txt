@@ -1,0 +1,5 @@
+# Python dependencies for the Knowledge Factory
+# Install with: pip install -r requirements.txt
+
+graphifyy>=0.8.36   # vault-graph skill: similarity matching + graph traversal
+                    # pulls in: networkx, rapidfuzz, datasketch, scipy, numpy
