@@ -1,6 +1,6 @@
 ﻿---
 name: extract-gems
-description: Identifies vault-worthy "gems" produced during a conversation with Claude and routes each to the right destination - a new AI_Candidate, a one-line refinement of an existing note, or exclude. Use when the user asks to extract or capture gems, run the gem-capture / gem-identification process, check whether a conversation produced something vault-worthy, or formalise an insight into the vault; also offer it proactively at the end of a substantive conceptual conversation. Do NOT fire for coding tasks, drafting help, sanity checks, or short (<20-message) chats.
+description: Identifies vault-worthy "gems" produced during a conversation with Claude and routes each to the right destination - a new AI_Candidate, a one-line refinement of an existing note, or exclude. Use when the user asks to extract or capture gems, run the gem-capture / gem-identification process, check whether a conversation produced something vault-worthy, or formalise an insight into the KZN vault; also offer it proactively at the end of a substantive conceptual conversation. Do NOT fire for coding tasks, drafting help, sanity checks, or short (<20-message) chats.
 ---
 
 # extract-gems - post-conversation gem identification
@@ -57,11 +57,13 @@ reworded-existing-idea pollution.
 - *Refinement*: guarded literal patch on the concept note - add one bullet **before** the
   `**Boundary condition:**` line in `## Mechanism`, bump `updated`. Confirm the anchor
   matches exactly once before writing. **Only if `status: final` is NOT set**; for a final
-  note add a `## Cross-Domain Links` entry on its MOC instead.
+  note add a `## Cross-Domain Links` entry on its MOC instead — and if the note is in
+  multiple MOCs, add it to the MOC whose Core Question the refinement speaks to (or to
+  each such MOC if it speaks to several).
 - *Exclude / tooling*: report only, or draft the CLAUDE.md/SKILL.md change.
 
 **G-5 Report and stop.** List each candidate and its disposition. New candidates wait for
-the user's weekly review - never promote into `21_Concepts/` here (that is process-inbox's
+the user's weekly review - never promote into `20_Learning/21_Concepts/` here (that is process-inbox's
 job, after the cooling period).
 
 ## Safety

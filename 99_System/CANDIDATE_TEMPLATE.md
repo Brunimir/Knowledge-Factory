@@ -1,8 +1,8 @@
 ---
 status: proposed
 source: claude-chat-YYYY-MM-DD
-suggested_location: Concepts/  # or Patterns/, Decisions/, etc.
-suggested_type: concept  # concept | pattern | decision | refinement
+suggested_location: Concepts/  # or Patterns/, etc.
+suggested_type: concept  # concept | pattern | refinement
 extracted: YYYY-MM-DD
 related: []
 ---

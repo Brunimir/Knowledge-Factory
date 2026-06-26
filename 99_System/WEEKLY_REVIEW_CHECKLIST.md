@@ -23,7 +23,7 @@ For each file, open it and decide one of three exits:
 **Promote** — the idea survives. The candidate becomes a final note in the canonical vault.
 
 - Read the candidate. Read it again. Ignore the wording; evaluate the idea.
-- If the idea holds up: rewrite the candidate in your own words as a Concept Note (or Pattern, or Decision — whichever the suggested_type indicates), in the canonical folder.
+- If the idea holds up: rewrite the candidate in your own words as a Concept Note (or Pattern — whichever the suggested_type indicates), in the canonical folder.
 - The rewrite is the work. Do not copy-paste. Rewriting is what makes the knowledge yours.
 - Add wikilinks to existing related notes. Update the relevant MOC if needed.
 - Fill in the Review notes section of the candidate with the decision and target location.

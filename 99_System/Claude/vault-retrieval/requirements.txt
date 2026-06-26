@@ -1,0 +1,17 @@
+# vault-retrieval dependencies — hybrid (dense+sparse+RRF) retrieval.
+#
+#   onnxruntime — runs bge-micro-v2 (the model Smart Connections already uses)
+#                 on CPU for dense embeddings, WITHOUT pulling in torch.
+#   tokenizers  — bge WordPiece tokenizer (loads tokenizer.json).
+#   numpy       — vectors, BM25, RRF (already in the tree from generate_index).
+#
+# Sparse (BM25) and RRF are pure numpy/Python — no extra deps. The bge-micro-v2
+# ONNX model + tokenizer are downloaded once into .embeddings/ (gitignored,
+# derived, rebuildable) and are NOT a pip dependency.
+#
+# Reproducible install (hash-locked, includes the transitive tree):
+#   uv pip compile requirements.txt --generate-hashes -o requirements.lock
+#   pip install --require-hashes -r requirements.lock
+onnxruntime==1.27.0
+tokenizers==0.23.1
+numpy==2.4.6

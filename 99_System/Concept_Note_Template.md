@@ -11,7 +11,7 @@ domain:        # learning | writing | presentations | biology | strategy | multi
 source_type: 
 created: 
 updated: 
-moc: []
+moc: []          # one or more MOC stems — a concept may belong to several MOCs
 reviewed: false
 flashcards: false
 tags:
@@ -30,7 +30,8 @@ tags:
 
 ## Links
 - Related: [[]]
-- MoC: [[]]
+- MoC: [[]]   <!-- list every MOC this concept belongs to; a concept can sit in more than one -->
+
 - Contradicts: [[]]
 - Supports: [[]]
 - Source [[]]

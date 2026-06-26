@@ -1,5 +1,16 @@
 # Python dependencies for the Knowledge Factory
 # Install with: pip install -r requirements.txt
-
-graphifyy>=0.8.36   # vault-graph skill: similarity matching + graph traversal
-                    # pulls in: networkx, rapidfuzz, datasketch, scipy, numpy
+#
+# Core — needed by generate_index.py (builds VAULT_INDEX.json):
+PyYAML>=6.0
+#
+# Optional, per-skill (install only if you use that skill). Each ships a
+# hash-locked requirements.lock for a reproducible install:
+#   vault-graph     (similarity + graph topology):
+#     pip install -r 99_System/Claude/vault-graph/requirements.txt
+#       rapidfuzz, datasketch, networkx   — all vetted PyPI packages;
+#       the former external `graphifyy` dependency was removed (2026-06-20)
+#       and replaced by the local module vault_graph.py.
+#   vault-retrieval (vault-query hybrid retrieval):
+#     pip install --require-hashes -r 99_System/Claude/vault-retrieval/requirements.lock
+#       onnxruntime, tokenizers, numpy    — CPU embeddings, no torch.

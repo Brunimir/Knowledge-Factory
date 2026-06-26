@@ -13,8 +13,8 @@ A concept note is eligible for flashcard generation when:
 - `status: final` in its YAML frontmatter
 - `flashcards: false` (not yet generated)
 
-Notes with `status: draft` or `status: needs-review` are skipped and logged —
-both are valid permanent resting states, not errors. A note with `status: final`
+Notes with `status: draft` are skipped and logged —
+it is a valid permanent resting state, not an error. A note with `status: final`
 and `flashcards: true` is also skipped: `flashcards: true` means the cards
 already exist OR the human opted the note out of studying (reviewed, no cards
 needed). Never generate cards for it.

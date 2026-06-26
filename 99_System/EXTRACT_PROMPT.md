@@ -26,8 +26,8 @@ Template:
 ---
 status: proposed
 source: claude-chat-[today's date]
-suggested_location: [Concepts/ | Patterns/ | Decisions/ | other]
-suggested_type: [concept | pattern | decision | refinement]
+suggested_location: [Concepts/ | Patterns/ | other]
+suggested_type: [concept | pattern | refinement]
 extracted: [today's date]
 related: []
 ---
@@ -87,7 +87,7 @@ The pasted prompt produces at most one *new-note* candidate - but a conversation
 |---|---|---|
 | **New** | No existing note covers it; genuinely new framing, mechanism, or connection | The pasted prompt's path - one sharpest candidate to `00_Inbox/AI_Candidates/`, then the cooling period below. |
 | **Refinement** | A sharper or extended version of an *existing* concept (otherwise it is "a nicely-worded version of an existing idea") | One-line surgical patch on that concept note: a bullet placed **before** the `**Boundary condition:**` line in `## Mechanism`, and bump `updated`. **Only if `status: final` is NOT set** - for a final note use a `## Cross-Domain Links` entry on its MOC instead. Do not create a candidate. |
-| **Already captured** | The insight was written into an artefact *during the same conversation* (a Solution, a Decision) | Exclude - it is already in the vault. |
+| **Already captured** | The insight was written into an artefact *during the same conversation* (a Solution) | Exclude - it is already in the vault. |
 | **Operational / tooling** | Knowledge about the PKM/vault machinery, not learnable domain knowledge | Route to `CLAUDE.md` / the relevant `SKILL.md`, not to a vault note. |
 
 Rules of thumb:

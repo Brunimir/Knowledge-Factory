@@ -25,21 +25,23 @@ Read the first word of the user's message to dispatch:
   process-inbox          → run the PKM ingestion pipeline (Phases 0–5)
                            reads from: 00_Inbox\Note Pipe\
                            writes to:  21_Concepts\, 22_Maps_of_Content\
+                           note: a concept's `moc:` field is a LIST — a note may be
+                                 mapped into several MOCs; patch every relevant one.
 
   generate-flashcards    → generate Anki flashcards from status:final concept notes
                            reads from: 20_Learning\21_Concepts\ (status:final AND flashcards:false)
                            writes to:  20_Learning\23_FlashCards\  (FC_{stem}.md)
                            format: flashcards-obsidian plugin (4 #card headings per note)
 
-  pkm-solution           → draft a Phase 5 artefact (Pattern, Solution, or Decision)
+  pkm-solution           → draft a Phase 5 artefact (Pattern or Solution)
                            reads from: 00_Inbox\VAULT_INDEX.json → 21_Concepts\,
                                        10_Ideas\, 40_Solutions\ (selective; index-first)
                            writes to:  40_Solutions\
                            see skill: 99_System\Claude\pkm-solution\SKILL.md
 
   vault-health           → audit wikilinks, orphans, used_in counts,
-                           expiring decisions, vault gaps (acronyms),
-                           and MOC coverage. See pkm-review skill.
+                           vault gaps (acronyms), and MOC coverage.
+                           See pkm-review skill.
                            reads from: VAULT_INDEX.json + targeted note reads
                            writes to:  00_Inbox\VAULT_HEALTH_REPORT.md
                                        00_Inbox\VAULT_GAPS_REPORT.md
@@ -74,6 +76,16 @@ Read the first word of the user's message to dispatch:
                            writes to:  00_Inbox\AI_Candidates\  (new candidates)
                                        or a one-line bullet on an existing concept
                            see skill: 99_System\Claude\gem-extraction\SKILL.md
+
+  vault-query {question} → answer an ad-hoc vault question with a CITED,
+                           synthesised answer, or admit the vault has nothing on
+                           it. Hybrid retrieval (dense bge-micro-v2 + sparse BM25,
+                           fused with RRF) over a gitignored, rebuildable shadow
+                           index. READ-ONLY — never writes a vault note. Cites
+                           every claim as [[stem]] and never fabricates.
+                           corpus: 21_Concepts, 22_Maps_of_Content, 40_Solutions,
+                                   10_Ideas (Note Pipe excluded)
+                           see skill: 99_System\Claude\vault-retrieval\SKILL.md
 
 If no subcommand is recognised, ask the user which command they meant.
 Do not guess. Do not run the ingestion pipeline by default.
@@ -112,7 +124,7 @@ and stop. Phase 5 retrieval is index-first — a stale index will surface
 deleted notes and miss new ones.
 
 Then restate the user's brief in one sentence and name the chosen artefact
-type (Pattern, Solution, or Decision) before any file read. If the brief
+type (Pattern or Solution) before any file read. If the brief
 is unclear or the type ambiguous, ask — do not guess.
 
 ---
@@ -211,25 +223,28 @@ all three in a single review pass:
   3. At least one real situation named in Application where it applies
 
 The agent NEVER sets status:final automatically.
-The agent sets status:needs-review after successful write.
+The agent leaves new notes at status:draft after successful write.
 The human sets status:final after their review pass.
 generate-flashcards only processes status:final notes.
 
 CONCEPT RESTING STATES (no review SLA — the human is not a bottleneck):
-  • draft        — valid PERMANENT state, no time limit. A concept may stay
-                   draft forever (a reference note, or content never chosen
-                   for study). Never treated as stale.
-  • needs-review — agent-written, awaiting an OPTIONAL human pass. Also no
-                   time limit and never nagged. The human promotes the notes
-                   they choose; the rest rest indefinitely.
+  • draft        — the agent-written AND human-drafted resting state, and a
+                   valid PERMANENT one: no time limit. A concept may stay draft
+                   forever (a reference note, or content never chosen for study),
+                   or rest as an agent-written note awaiting an OPTIONAL human
+                   pass. Never treated as stale or nagged. The human promotes the
+                   notes they choose; the rest rest indefinitely.
   • final + flashcards:false — approved; flashcards pending generation.
   • final + flashcards:true  — terminal. Either the cards were generated, OR
                    the human set flashcards:true by hand to opt the note out
                    of studying ("reviewed, no need to study"). Either way no
                    flashcards are (re)generated and it is never flagged.
   vault-health surfaces only actionable notes (final + flashcards:false); it
-  never nags about a draft or needs-review backlog. As gem-extraction grows
-  vault volume, this keeps the human off the critical path.
+  never nags about a draft backlog. As gem-extraction grows vault volume, this
+  keeps the human off the critical path. (There is no needs-review status —
+  any legacy needs-review notes map to draft.)
+
+See docs/lifecycle.md for the full artefact-lifecycle reference.
 
 ---
 ## PROCESS-INBOX PIPELINE — see docs/inbox-pipeline.md

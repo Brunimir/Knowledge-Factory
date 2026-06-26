@@ -55,7 +55,11 @@ OUTPUT
 
     Concept (notes[]) fields:
       stem, title, type, status, description, domain, source_type,
-      moc[], reviewed, flashcards, created, updated, aliases[], tags[]
+      moc[], reviewed, flashcards, concept_role, created, updated,
+      aliases[], tags[]
+      (concept_role ∈ study|reference|scaffold — optional; absent ⇒ "study".
+       Separates a note's stable purpose from the transient reviewed/flashcards
+       booleans, so reference/scaffold notes are not nagged for missing cards.)
 
     Pattern fields:
       stem, title, status, description, domain, problem, problem_type,
@@ -70,8 +74,10 @@ OUTPUT
 
     Decision fields:
       stem, title, status, description, domain, decision_type, date,
-      expires, affected_patterns[], supersedes[], superseded_by[],
-      tags[], created, updated
+      expires, affected_patterns[], affected_solutions[], supersedes[],
+      superseded_by[], tags[], created, updated
+      (affected_solutions[] — optional Solution stems the decision reshapes,
+       the solution-side mirror of affected_patterns[].)
 
     Idea fields:
       stem, title, status, description, domain, origin[], tags[],
@@ -81,6 +87,7 @@ OUTPUT
 import os
 import re
 import json
+import hashlib
 import yaml
 from pathlib import Path
 from datetime import date
@@ -89,6 +96,17 @@ from datetime import date
 
 VAULT = Path(__file__).parent
 INDEX = VAULT / "00_Inbox" / "VAULT_INDEX.json"
+
+# Content-hash incremental cache (Phase 1c). Sidecar keyed by file path, storing
+# a whole-file SHA-256 plus the already-computed parse result, so unchanged
+# notes are skipped (no YAML re-parse / re-validate) on the next rebuild. The
+# cache is a disposable derived artefact (gitignored): deleting it forces a
+# full from-scratch build, which produces byte-identical output. Whole-file
+# hashing (not chunked) avoids chunk-boundary churn. CACHE_VERSION is bumped
+# whenever the parse/validate/extract logic below changes, which invalidates
+# every entry so stale records can never leak into the index.
+CACHE = VAULT / "00_Inbox" / ".index_cache.json"
+CACHE_VERSION = 3   # bump on any parse/validate/extract change (v3: concept_role + decision affected_solutions)
 
 # Explicit allowlist — only these directories are scanned (relative to VAULT)
 SCAN_DIRS = [
@@ -121,13 +139,14 @@ REQUIRED_DECISION_FIELDS = REQUIRED_BASE_FIELDS | {"decision_type"}
 REQUIRED_IDEA_FIELDS     = REQUIRED_BASE_FIELDS
 
 # Controlled vocabularies — agent flags deviations
-VALID_DOMAINS           = {"learning", "writing", "presentations", "biology", "strategy", "multiple", "enterprise-architecture", "ai-systems", "data-engineering"}
-VALID_STATUSES          = {"draft", "needs-review", "final"}
+VALID_DOMAINS           = {"learning", "writing", "presentations", "biology", "strategy", "multiple", "enterprise-architecture", "ai-systems", "data-engineering", "cybersecurity", "economics"}
+VALID_STATUSES          = {"draft", "final"}
 VALID_TYPES             = {"concept", "moc", "pattern", "idea", "solution", "decision"}
 VALID_SOURCE_TYPES      = {"book", "course", "article", "notebooklm", "shower-thought"}
 VALID_DECISION_TYPES    = {"establishing", "changing", "deviating"}
 VALID_DECISION_STATUSES = {"proposed", "accepted", "superseded", "expired"}
 VALID_PROBLEM_TYPES     = {"learning", "communication", "leadership", "decision-making", "productivity"}
+VALID_CONCEPT_ROLES     = {"study", "reference", "scaffold"}   # optional on concepts; absent ⇒ "study"
 
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -187,7 +206,7 @@ def _required_missing(fields: dict, required: set) -> list[str]:
     absent, None, or the empty string. Empty lists pass — list-non-empty
     rules live in per-type validators."""
     errors = []
-    for f in required:
+    for f in sorted(required):   # sorted(): `required` is a set; deterministic order
         v = fields.get(f)
         if f not in fields or v is None or v == "":
             errors.append(f"missing field: {f}")
@@ -230,6 +249,13 @@ def validate_concept(stem: str, fields: dict) -> list[str]:
         val = fields.get(bf)
         if val is not None and not isinstance(val, bool):
             errors.append(f"{bf} must be true or false — got: {repr(val)}")
+
+    # concept_role is OPTIONAL (absent ⇒ "study"); only its VALUE is policed, so
+    # no existing concept needs migrating. Distinguishes study/reference/scaffold
+    # intent from the transient reviewed/flashcards booleans.
+    cr = fields.get("concept_role")
+    if cr is not None and cr != "" and cr not in VALID_CONCEPT_ROLES:
+        errors.append(f"invalid concept_role: '{cr}' — must be one of {sorted(VALID_CONCEPT_ROLES)}")
 
     return errors
 
@@ -333,6 +359,7 @@ def extract_note_record(stem: str, fields: dict) -> dict:
         "moc":         list_field(fields, "moc"),
         "reviewed":    bool(fields.get("reviewed", False)),
         "flashcards":  bool(fields.get("flashcards", False)),
+        "concept_role": str_field(fields, "concept_role", "study"),  # study | reference | scaffold
         "created":     str_field(fields, "created"),
         "updated":     str_field(fields, "updated"),
         "aliases":     list_field(fields, "aliases"),
@@ -398,6 +425,7 @@ def extract_decision_record(stem: str, fields: dict) -> dict:
         "date":              str_field(fields, "date"),
         "expires":           str_field(fields, "expires"),
         "affected_patterns": list_field(fields, "affected_patterns"),
+        "affected_solutions": list_field(fields, "affected_solutions"),
         "supersedes":        list_field(fields, "supersedes"),
         "superseded_by":     list_field(fields, "superseded_by"),
         "tags":              list_field(fields, "tags"),
@@ -432,11 +460,95 @@ def is_decision_archived(rec: dict, today: date) -> bool:
 
 # ── SCAN ──────────────────────────────────────────────────────────────────────
 
+# kind -> bucket name, for routing parsed results into the index buckets.
+_KIND_BUCKET = {
+    "concept": "concepts", "moc": "mocs", "pattern": "patterns",
+    "solution": "solutions", "decision": "decisions", "idea": "ideas",
+}
+
+
+def classify_and_extract(stem: str, content: str) -> dict:
+    """Pure function: filename stem + raw file content -> a parse RESULT.
+    Result shape (JSON-serialisable, so it can be cached verbatim):
+        {"kind": concept|moc|pattern|solution|decision|idea
+                 |skip_no_fm|parse_error,
+         "stem": stem, "record": <bucket record> | None, "errors": [str, ...]}
+    This is exactly the per-file logic the non-incremental scan ran inline;
+    routing it via route() reproduces the previous bucketing byte-for-byte."""
+    fields, parse_errors = parse_frontmatter(content)
+    if fields is None and not parse_errors:
+        return {"kind": "skip_no_fm", "stem": stem, "record": None, "errors": []}
+    if parse_errors:
+        return {"kind": "parse_error", "stem": stem, "record": None, "errors": parse_errors}
+
+    note_type = str(fields.get("type", "")).strip()
+
+    # MOC detection — by filename prefix OR by explicit type (fname == stem+'.md')
+    if stem.startswith("MOC_") or note_type == "moc":
+        return {"kind": "moc", "stem": stem,
+                "record": extract_moc_record(stem, fields), "errors": validate_moc(stem, fields)}
+    if note_type == "pattern":
+        return {"kind": "pattern", "stem": stem,
+                "record": extract_pattern_record(stem, fields), "errors": validate_pattern(stem, fields)}
+    if note_type == "solution":
+        return {"kind": "solution", "stem": stem,
+                "record": extract_solution_record(stem, fields), "errors": validate_solution(stem, fields)}
+    if note_type == "decision":
+        return {"kind": "decision", "stem": stem,
+                "record": extract_decision_record(stem, fields), "errors": validate_decision(stem, fields)}
+    if note_type == "idea":
+        return {"kind": "idea", "stem": stem,
+                "record": extract_idea_record(stem, fields), "errors": validate_idea(stem, fields)}
+    # Default: treat as concept (matches prior behaviour)
+    return {"kind": "concept", "stem": stem,
+            "record": extract_note_record(stem, fields), "errors": validate_concept(stem, fields)}
+
+
+def route(result: dict, buckets: dict, skipped_no_frontmatter: list) -> None:
+    """Apply a parse RESULT into the buckets — identically for fresh and cached
+    results. A typed note with validation errors lands in BOTH its type bucket
+    and validation_errors, exactly as the original inline scan did."""
+    kind = result["kind"]
+    stem = result["stem"]
+    if kind == "skip_no_fm":
+        skipped_no_frontmatter.append(stem)
+        return
+    if kind == "parse_error":
+        buckets["validation_errors"].append({"stem": stem, "errors": result["errors"]})
+        return
+    if result["errors"]:
+        buckets["validation_errors"].append({"stem": stem, "errors": result["errors"]})
+    buckets[_KIND_BUCKET[kind]].append(result["record"])
+
+
+def load_cache() -> dict:
+    """Load the incremental cache, or an empty one on any problem (missing,
+    corrupt, or a CACHE_VERSION bump). An unusable cache means a full rebuild —
+    never an error, and never a stale record (version-gated)."""
+    try:
+        with open(CACHE, encoding="utf-8") as f:
+            data = json.load(f)
+        if data.get("version") != CACHE_VERSION:
+            return {}
+        return data.get("files", {}) or {}
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+
+
+def save_cache(files: dict) -> None:
+    try:
+        with open(CACHE, "w", encoding="utf-8") as f:
+            json.dump({"version": CACHE_VERSION, "files": files}, f, ensure_ascii=False)
+    except OSError as e:
+        print(f"  [WARN] could not write index cache: {e}")
+
+
 def scan_vault(vault: Path, scan_dirs: list) -> dict:
-    """Walk scan_dirs and bucket every .md by frontmatter type.
-    Returns: {"concepts": [...], "mocs": [...], "patterns": [...],
-              "solutions": [...], "decisions": [...], "ideas": [...],
-              "validation_errors": [...]}. First-seen stem wins."""
+    """Walk scan_dirs and bucket every .md by frontmatter type, reusing cached
+    parse results for files whose whole-file SHA-256 is unchanged (Phase 1c).
+    Returns the same buckets shape as before, plus an "_incremental" stats
+    sub-dict carrying the new cache. First-seen stem wins; the JSON output is
+    identical to a from-scratch build (empty cache)."""
     buckets = {
         "concepts": [], "mocs": [], "patterns": [],
         "solutions": [], "decisions": [], "ideas": [],
@@ -444,6 +556,10 @@ def scan_vault(vault: Path, scan_dirs: list) -> dict:
     }
     seen_stems = set()
     skipped_no_frontmatter = []  # legacy/freeform files; printed for visibility, not flagged
+
+    old_files = load_cache()
+    new_files = {}
+    reused = reprocessed = 0
 
     for rel_dir in scan_dirs:
         target = vault / rel_dir
@@ -465,56 +581,21 @@ def scan_vault(vault: Path, scan_dirs: list) -> dict:
                 seen_stems.add(stem)
 
                 fpath = Path(root) / fname
-                with open(fpath, encoding="utf-8") as f:
-                    content = f.read()
+                rel = fpath.relative_to(vault).as_posix()
 
-                fields, parse_errors = parse_frontmatter(content)
-                if fields is None and not parse_errors:
-                    skipped_no_frontmatter.append(stem)
-                    continue
-                if parse_errors:
-                    buckets["validation_errors"].append({"stem": stem, "errors": parse_errors})
-                    continue
+                raw = fpath.read_bytes()
+                digest = hashlib.sha256(raw).hexdigest()
 
-                note_type = str(fields.get("type", "")).strip()
-
-                # MOC detection — by filename prefix OR by explicit type
-                if fname.startswith("MOC_") or note_type == "moc":
-                    val = validate_moc(stem, fields)
-                    if val:
-                        buckets["validation_errors"].append({"stem": stem, "errors": val})
-                    buckets["mocs"].append(extract_moc_record(stem, fields))
-
-                elif note_type == "pattern":
-                    val = validate_pattern(stem, fields)
-                    if val:
-                        buckets["validation_errors"].append({"stem": stem, "errors": val})
-                    buckets["patterns"].append(extract_pattern_record(stem, fields))
-
-                elif note_type == "solution":
-                    val = validate_solution(stem, fields)
-                    if val:
-                        buckets["validation_errors"].append({"stem": stem, "errors": val})
-                    buckets["solutions"].append(extract_solution_record(stem, fields))
-
-                elif note_type == "decision":
-                    val = validate_decision(stem, fields)
-                    if val:
-                        buckets["validation_errors"].append({"stem": stem, "errors": val})
-                    buckets["decisions"].append(extract_decision_record(stem, fields))
-
-                elif note_type == "idea":
-                    val = validate_idea(stem, fields)
-                    if val:
-                        buckets["validation_errors"].append({"stem": stem, "errors": val})
-                    buckets["ideas"].append(extract_idea_record(stem, fields))
-
+                cached = old_files.get(rel)
+                if cached is not None and cached.get("hash") == digest:
+                    result = cached["result"]   # unchanged note: skip parse + validate
+                    reused += 1
                 else:
-                    # Default: treat as concept (matches prior behaviour)
-                    val = validate_concept(stem, fields)
-                    if val:
-                        buckets["validation_errors"].append({"stem": stem, "errors": val})
-                    buckets["concepts"].append(extract_note_record(stem, fields))
+                    result = classify_and_extract(stem, raw.decode("utf-8", errors="replace"))
+                    reprocessed += 1
+
+                new_files[rel] = {"hash": digest, "result": result}
+                route(result, buckets, skipped_no_frontmatter)
 
     for key, items in buckets.items():
         if key == "validation_errors":
@@ -522,6 +603,12 @@ def scan_vault(vault: Path, scan_dirs: list) -> dict:
         else:
             items.sort(key=lambda r: r["stem"])
     buckets["_skipped_no_frontmatter"] = sorted(skipped_no_frontmatter)
+    buckets["_incremental"] = {
+        "reused": reused,
+        "reprocessed": reprocessed,
+        "removed": len(set(old_files) - set(new_files)),
+        "new_files": new_files,
+    }
     return buckets
 
 
@@ -560,7 +647,13 @@ def main():
     with open(INDEX, "w", encoding="utf-8") as f:
         json.dump(index, f, indent=2, ensure_ascii=False)
 
+    # Persist the content-hash cache for the next incremental run (Phase 1c).
+    inc = b.get("_incremental", {})
+    save_cache(inc.get("new_files", {}))
+
     print(f"[OK] Index written to: {INDEX}")
+    print(f"  Incremental          : {inc.get('reused', 0)} reused (skipped), "
+          f"{inc.get('reprocessed', 0)} reprocessed, {inc.get('removed', 0)} removed")
     print(f"  Concept notes        : {len(b['concepts'])}")
     print(f"  MOC files            : {len(b['mocs'])}")
     print(f"  Patterns             : {len(b['patterns'])}")

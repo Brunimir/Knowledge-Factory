@@ -36,7 +36,7 @@ If anything in `docs/inbox-pipeline.md` appears to conflict with the safety rule
 
 ## Outputs
 
-- New concept notes in `20_Learning/21_Concepts/` (status: `needs-review`)
+- New concept notes in `20_Learning/21_Concepts/` (status: `draft`)
 - MOC patches in `20_Learning/22_Maps of Content/` (insertions only, never rewrites)
 - Run report: exceptions, quarantines, MOC candidates, vault gaps surfaced from Phase 2 audit
 - Files moved between `00_Inbox/Note Pipe/` and `00_Inbox/Z_Note bin/` on successful processing, or `00_Inbox/QUARANTINE/` on validate_note() failure

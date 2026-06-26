@@ -437,8 +437,9 @@ validate_note() — hard gate before every file write
     data-engineering
   ✓ source_type is one of: book | course | article |
     notebooklm | shower-thought
-  ✓ status is one of: draft | needs-review | final
-  ✓ moc: is a YAML list — e.g. [MOC_Learning_and_Memory]
+  ✓ status is one of: draft | final
+  ✓ moc: is a YAML list — a concept may belong to several MOCs,
+    e.g. [MOC_Learning_and_Memory, MOC_Productivity]
   ✓ reviewed and flashcards are boolean (true or false, not string)
   ✓ Links block has the 4 REQUIRED lines in this order:
       - Related: ...

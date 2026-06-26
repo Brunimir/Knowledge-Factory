@@ -1,0 +1,13 @@
+# vault-graph dependencies — graphifyy REMOVED (2026-06-20), replaced by the
+# local module vault_graph.py. These three libraries are everything the skill
+# uses; there is no longer any unreviewed / anonymous third-party package:
+#   rapidfuzz   — title fuzzy matching (similarity S-1)
+#   datasketch  — MinHash + LSH        (similarity S-2; pulls numpy + scipy)
+#   networkx    — directed link graph  (topology / path)
+#
+# Reproducible install (hash-locked, includes transitive numpy/scipy):
+#   uv pip compile requirements.txt --generate-hashes -o requirements.lock
+#   pip install --require-hashes -r requirements.lock
+rapidfuzz==3.14.5
+datasketch==1.10.0
+networkx==3.6.1
