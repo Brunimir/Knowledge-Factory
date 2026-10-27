@@ -1,5 +1,7 @@
 # The Knowledge Factory
 
+https://www.youtube.com/watch?v=6mgbrZEIs_Y
+
 **An agentic Personal Knowledge Management (PKM) system that turns raw, multi-disciplinary input into durable, interconnected, retrievable knowledge — and tells you exactly how much you can learn without falling behind.**
 
 Most note-taking solutions are where information goes to die: you capture more than you ever revisit, connections never form, and nothing reaches long-term memory.
