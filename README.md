@@ -1,6 +1,6 @@
 # The Knowledge Factory
 
-Introduction Video: https://www.youtube.com/watch?v=zTVekw7lT_k
+Introduction Video: https://www.youtube.com/watch?v=BkIc0_dFqwE
 
 **An agentic Personal Knowledge Management (PKM) system that turns raw, multi-disciplinary input into durable, interconnected, retrievable knowledge — and tells you exactly how much you can learn without falling behind.**
 
