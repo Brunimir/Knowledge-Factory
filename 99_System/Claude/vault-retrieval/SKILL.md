@@ -1,6 +1,5 @@
 # Skill: vault-query
-**Role:** Retrieve — a read-only, cross-cutting retrieval command over the whole
-vault (the "Usage" job), not one of the five pipeline engines.
+**Engine:** 02 — Retrieve
 **Requires:** the local module `99_System/Claude/vault-retrieval/retrieval.py`
 (`onnxruntime` + `tokenizers` + `numpy`). Install hash-locked:
 `pip install --require-hashes -r 99_System/Claude/vault-retrieval/requirements.lock`
@@ -18,9 +17,11 @@ or honestly admit the vault has nothing on it. Retrieval is **hybrid**: notes ar
 split into overlapping chunks, then dense semantic recall (bge-micro-v2) + sparse
 keyword (BM25) score every chunk and fuse via Reciprocal Rank Fusion, with each
 note taking its best chunk — so a question phrased differently from the target,
-or answered deep inside a long note, still finds it. Your **Q-4 read of the top
-notes is the reranker** — no separate cross-encoder model is needed, which keeps
-the dependency tree lean.
+or answered deep inside a long note, still finds it. This is the read path of the
+"Adopt Hybrid Retrieval Layer" Decision (IMP-4 retrieval, IMP-5 cited answer,
+IMP-6 multi-query expansion). Your **Q-4 read of the top notes is the reranker** —
+no separate cross-encoder model is needed (keeps the tree lean per the integrity
+Decision).
 
 ## Command
 `vault-query {question}` — synthesises a cited answer from the vault.
@@ -40,7 +41,7 @@ This re-chunks and re-embeds only notes whose SHA-256 changed (seconds when
 nothing changed; ~85 s only on the very first build). Skip if you just built it
 this session.
 
-**Q-1 — Expand the query (opportunistic).**
+**Q-1 — Expand the query (IMP-6, opportunistic).**
 Generate 2–4 alternative phrasings of the question (synonyms, the domain term,
 a plain-language restatement). You are the model, so this is free. Pass them as
 `--expand` flags. Each phrasing is fused in via RRF, widening recall. If you
@@ -55,7 +56,7 @@ python 99_System/Claude/vault-retrieval/retrieval.py query "{question}" \
 Read the JSON: `results[]` (each with `stem`, `path`, `title`, `snippet`,
 `dense_cos`, `bm25`, `rrf`), `max_cos`, and `low_confidence`.
 
-**Q-3 — Gate: admit gaps, never fabricate.**
+**Q-3 — Gate: admit gaps, never fabricate (IMP-5).**
 If `low_confidence` is true, OR the top results plainly do not address the
 question (read the snippets — semantic score can be a false positive), respond:
 > "Nothing in the vault addresses this."

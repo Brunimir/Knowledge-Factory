@@ -11,6 +11,63 @@ CLAUDE.md — only the long phase definitions are here.
 
 ---
 
+# ARCHITECTURE NOTE (2026-06-09): deterministic generator
+
+The mechanical render — PHASE V-3 (build Mermaid), V-4 (mmdc), V-5 (write
+diagram file + patch MOC) — is now done by a **deterministic script**,
+`build_diagrams.ps1`, NOT by the LLM agent. The launcher calls it directly
+after the extractor; the agent is no longer invoked on a normal run. This made
+re-runs byte-stable, testable, and fast (the layout was the least reproducible
+thing to leave to an LLM). The phase prose below is retained as the conceptual
+spec the script implements. Pipeline now:
+
+  launch-visualise-moc.ps1
+    -> mmdc doctor (MMDC_MODE.txt)  -> generate_index.py  -> validate stem
+    -> extract_diagram_candidates.ps1   (manifest: clusters, edges, icons,
+                                         short labels, rendered_clusters)
+    -> build_diagrams.ps1               (all .mmd -> SVG -> diagram file ->
+                                         MOC patch -> DIAGRAM_RENDER_PLAN.json)
+
+What `build_diagrams.ps1` enforces (the rules we settled on):
+  - Label = "{icon} {short or title}" (icon/short from manifest/ICON_MAP).
+    `short` is auto-derived from a trailing parenthetical acronym in the
+    extractor when not curated ("... (NFS)" -> "NFS"); the extractor prints an
+    ICON_MAP coverage report of remaining gaps in rendered clusters.
+  - Selection: structural degree (typed, non-related-to edges) desc, then
+    total degree, then manifest order; cap = 9 (param). Omitted concepts are
+    listed in an "shows N of M" caption under the SVG (diagram file AND MOC).
+  - `contains` -> nested subgraph. An edge whose endpoint is a nested node is
+    RETARGETED to that node's top-level container box (dagre crashes —
+    "setting 'rank'" — on multiple edges into a deeply-nested subgraph; the
+    box visually contains the target anyway). Ancestor<->descendant real edges
+    are dropped (the nesting already shows them).
+  - Vertical layout: every sibling group (top-level or children of one
+    container) gets an invisible `~~~` backbone so it stacks; a backbone link
+    is skipped when that pair already has a real edge. flowchart TB everywhere,
+    INCLUDING the overview (stadiums stacked by backbone, cross-cluster edges
+    drawn on top). ELK layout was tested (2026-06-09) and REJECTED — it widens
+    fans (1073x457 vs backbone 717x991), the opposite of what we need.
+  - Rendering: mmdc runs with htmlLabels:false (config written to the build
+    dir as _mmdc_config.json, top-level AND flowchart.htmlLabels both false) so
+    labels are native SVG <text>, NOT <foreignObject> HTML. foreignObject does
+    not render when the SVG is embedded as an <img> (Obsidian's ![](x.svg)) -
+    with the default htmlLabels:true, every label and icon silently disappears.
+  - Readability gate: each SVG's viewBox is measured; aspect (w/h) > 1.30 is
+    flagged "wide" in the plan. Display width is a fixed param (default 690px)
+    written into every Obsidian embed (`|690`), replacing per-cluster hand
+    tuning.
+  - Diagram file (24_Diagrams/Diagram_{stem}.md) is the SVG-only "visual cram
+    sheet": a diagrams-only revision view titled "{MOC} - Visual Cram Sheet"
+    with a [[MOC]] back-link. It is distinct from the MOC (which interleaves
+    diagrams with prose/bullets); the MOC remains the source of truth. The MOC
+    patch is idempotent (updates width + caption on the existing per-cluster
+    embed, never duplicates).
+
+The agent path below still works if invoked manually, but is not used by the
+launcher. Edit `build_diagrams.ps1` to change layout behaviour.
+
+---
+
 # Visualisation Agent — visualise-moc
 
 You are a PKM diagram editor running an on-demand visualisation pipeline.
@@ -58,10 +115,18 @@ either the rule or the concept is wrong, and the discrepancy is the audit signal
 
 ---
 
-## Edge vocabulary (closed, 7 labels)
+## Edge vocabulary (closed, 12 labels)
 
 Edge labels are a closed vocabulary. Unknown labels STOP the build and require
 human resolution — same model as the acronym allowlist in inbox-pipeline.md.
+
+The vocabulary has two families. **Epistemic** labels describe how two *ideas*
+relate as claims (the original 7). **Structural** labels describe how two
+*components* relate as a system — containment, flow, propagation, lateral
+links, protection (added 2026-06-08 so platform/architecture MOCs can be wired
+the way an architecture sketch wires them, not just as an argument map).
+
+Epistemic labels (how ideas relate):
 
 | Label | Class | Meaning |
 | --- | --- | --- |
@@ -73,15 +138,35 @@ human resolution — same model as the acronym allowlist in inbox-pipeline.md.
 | mitigates | Horizontal | Same-tier remedy: A reduces the impact of B. |
 | related-to | Horizontal | Acknowledged kinship with no stronger label available. Used sparingly — see So-What Pruning. |
 
+Structural labels (how components relate as a system):
+
+| Label | Class | Meaning | Renders as |
+| --- | --- | --- | --- |
+| contains | Vertical | A is the scope/namespace/boundary that B lives inside (Region⊃AZ, VNet⊃subnet, Storage Account⊃Blob, MgmtGroup⊃Sub⊃RG⊃Resource). The dominant architecture relation. | **nested subgraph** (B drawn inside A), not an arrow — see "Containment rendering" in V-3. |
+| flows-into | Vertical | A's output feeds B in a directional pipeline (Source→Transform→Sink, Alert→Action Group→sink). | thick arrow `==>` |
+| inherits-to | Vertical | A propagates governance/config down a hierarchy to B (RBAC/Policy/Budget flow down; note the exam exception: tags do NOT inherit). | solid arrow `-->` |
+| peers-with | Horizontal | A and B link laterally as equals / A connects external reachability into B (VNet peering, VPN, ExpressRoute). | double-ended `<-->` |
+| protects | Horizontal | A is a security control guarding B (NSG→subnet, DDoS→public IP, Firewall). | thick arrow `==>` |
+
 Vertical edges encode the ladder of abstraction (why/how — from
 [[Vertical_and_Horizontal_Relationships]]). Horizontal edges encode same-tier
-logical consistency.
+logical consistency. `contains` is the one label that does not render as an
+edge at all: containment is shown by nesting one node's subgraph inside
+another's (Gestalt Proximity taken literally — see [[Cluster_Processing]]).
 
 Legacy compatibility: existing status:final concept notes only emit `supports`
-and `contradicts`. Per Safety Rule #6 those notes are immutable. The five
-richer labels populate only on notes ingested AFTER the inbox-pipeline.md
+and `contradicts`. Per Safety Rule #6 those notes are immutable. The richer
+epistemic labels populate only on notes ingested AFTER the inbox-pipeline.md
 Phase 3 widening. The engine consumes whatever the manifest provides without
 inferring new labels at render time.
+
+Where structural labels come from: the structural family is authored in the
+MOC's `## Concept Relationships` section by the curator, NOT derived from
+concept-note Links blocks. Containment/flow/inheritance are properties of the
+domain's architecture, not of any single note — and the source notes are
+locked. This mirrors how `## Cross-Domain Links` already lives in the MOC. The
+ground truth for an architecture domain is its source diagram (e.g. the AZ-900
+whiteboard in 30_Sources/): transcribe its connections into the MOC once.
 
 ---
 
@@ -105,12 +190,16 @@ linkStyle by index is fragile, do not use it):
 
 | Arrow | Used for edge labels |
 | --- | --- |
-| `-->` solid | supports, prerequisite-for, mechanism-of, instance-of, related-to |
+| `-->` solid | supports, prerequisite-for, mechanism-of, instance-of, related-to, inherits-to |
 | `-.->` dashed | contradicts |
-| `==>` thick | mitigates |
+| `==>` thick | mitigates, flows-into, protects |
+| `<-->` double | peers-with |
+| (none) | contains — rendered as nesting, not an arrow |
 
 The edge LABEL (between pipes) is the source of truth for the relationship
-type. Arrow style is a redundant visual hint, not a semantic carrier.
+type. Arrow style is a redundant visual hint, not a semantic carrier — several
+labels deliberately share an arrow (e.g. mitigates/flows-into/protects all use
+`==>`); the pipe label disambiguates.
 
 ════════════════════════════════════════════════════════════════
 PHASE V-0 — LOAD INDEX AND VALIDATE TARGET
@@ -151,11 +240,14 @@ PHASE V-1 — PARSE THE MANIFEST
         {
           "cluster_id": "cognitiveFoundation",        // camelCase derived from the cluster heading
           "cluster_display": "The Cognitive Foundation - why structure is not optional",
+          "cluster_icon": "🧠",                        // emoji for the subgraph label, or null (from ICON_MAP.json clusters)
           "concepts": [
             {
               "stem": "The_Magical_Number_Seven",
               "title": "The Magical Number Seven",
-              "description": "Working memory can hold ~7 items..."
+              "description": "Working memory can hold ~7 items...",
+              "icon": "🔢",                            // emoji prefix, or null (ICON_MAP.json concepts)
+              "short": "Magical Number 7"              // short display label used instead of title, or null (ICON_MAP.json short)
             },
             ...
           ]
@@ -166,7 +258,7 @@ PHASE V-1 — PARSE THE MANIFEST
         {
           "source_stem": "The_Magical_Number_Seven",
           "target_stem": "Chunking",
-          "label": "supports",          // one of the 7-label closed vocab
+          "label": "supports",          // one of the 12-label closed vocab
           "class": "horizontal",        // horizontal | vertical
           "same_cluster": true          // true if both endpoints sit in the same cluster
         },
@@ -174,6 +266,9 @@ PHASE V-1 — PARSE THE MANIFEST
       ],
       "unknown_edge_labels": [          // populated if the MOC's relationships
         "enables", "competes-with"      // section uses labels outside the closed vocab
+      ],
+      "rendered_clusters": [            // curator's pin list from MOC frontmatter, or []
+        "cognitiveFoundation", "theArchitecture"
       ]
     }
 
@@ -199,19 +294,34 @@ PHASE V-2 — PRE-RENDER VALIDATION (the checklist before drawing)
   Run these checks in order. STOP-checks block generation; warn-checks log
   and continue.
 
+  V-2.0 CLUSTER SELECTION — which clusters get rendered
+    If the manifest's `rendered_clusters` is NON-EMPTY (the curator set a
+    `rendered_clusters: [id, id, ...]` list in the MOC frontmatter), render
+    EXACTLY those clusters — both the overview node set and one Tier-2 detail
+    each — in that order, OVERRIDING the top-6-by-note-count default below.
+    This is how the curator pins clusters that matter regardless of size
+    (e.g. a 2-note Security Tooling cluster), and how a cluster keeps its
+    diagram across re-runs. Cluster ids in the list that don't exist in the
+    MOC are ignored with a V-6 warning. If `rendered_clusters` is empty, fall
+    back to the V-2.1 default.
+
   V-2.1 NODE CAP CHECK (auto-default, never STOP the launcher)
     The launcher invokes the agent non-interactively (no stdin). Caps must
     auto-default with logging, not block on a question. The agent flags
     overflows in the V-6 report so the user can split clusters in the MOC
     source on the next pass.
 
-    Tier 1 (Overview Skeleton): cluster count ≤ 6.
+    Tier 1 (Overview Skeleton) DEFAULT (only when rendered_clusters is empty):
+    cluster count ≤ 6.
       Citation: [[The_Magical_Number_Seven]] applied at the cluster level.
       If > 6 clusters → AUTO-DEFAULT: emit the top-6 clusters by note
       count; log the omitted ones as a V-6 warning:
         "ⓘ MOC has {N} clusters; rendered top-6 by note count.
           Omitted: {comma-separated list}. Consider merging clusters in the
           MOC source on the next iteration."
+      When rendered_clusters IS set, the cluster-count cap does not apply —
+      the curator owns the selection (vertical stacking keeps the overview
+      readable even past 7 clusters).
 
     Tier 2 (Cluster Detail): per-cluster concept count ≤ 7.
       Citation: [[Skeletal_Diagrams]] seven-item ceiling +
@@ -288,13 +398,18 @@ PHASE V-3 — BUILD MERMAID DIAGRAMS (two tiers)
     Viewpoint: "Where do the clusters sit relative to each other, and how
                 do they connect?"
     Audience: anyone arriving at the MOC for orientation.
-    Direction: flowchart LR (horizontal flow reads as a left-to-right
-               narrative; consistent with the legacy SVG layout).
+    Direction: flowchart TB (top-to-bottom). The old `flowchart LR` overview
+               became a wide ribbon once a MOC had several clusters; render
+               TB and stack the cluster stadiums into a column with an
+               invisible `~~~` backbone (see VERTICAL LAYOUT), drawing any
+               real cross-cluster edges on top of the backbone.
 
     Nodes: one node per cluster, ID = camelCase cluster_id from the
     manifest, label = the cluster_display string TRUNCATED at the first
     " - " separator if present (so "The Cognitive Foundation - why
-    structure is not optional" → "The Cognitive Foundation").
+    structure is not optional" → "The Cognitive Foundation"). If the
+    cluster's `cluster_icon` is non-null, prefix the label with the glyph
+    and one space (same rule as Tier 2).
 
     Node shape: stadium (rounded ends) for clusters in the overview.
       Syntax: clusterId(["Cluster Display Name"])
@@ -303,8 +418,11 @@ PHASE V-3 — BUILD MERMAID DIAGRAMS (two tiers)
     pair of clusters (A, B) where at least one edge exists between any
     concept in A and any concept in B:
       - Pick the strongest edge type present, in priority order:
-        contradicts > prerequisite-for > mechanism-of > supports
-        > mitigates > instance-of > related-to
+        contains > flows-into > inherits-to > contradicts > prerequisite-for
+        > mechanism-of > protects > peers-with > supports > mitigates
+        > instance-of > related-to
+        (At Tier 1, a cross-cluster `contains` is rendered as an arrow
+        labelled `contains`, not as nesting — nesting is a Tier-2-only device.)
       - Render one edge per cluster pair with that label.
       - Do NOT render parallel edges between the same cluster pair
         (Gestalt Continuity rule).
@@ -318,7 +436,7 @@ PHASE V-3 — BUILD MERMAID DIAGRAMS (two tiers)
     Template:
 
       %% headline: <one-sentence assertion>
-      flowchart LR
+      flowchart TB
           classDef cluster1 fill:#EEEDFE,stroke:#534AB7,color:#3C3489
           classDef cluster2 fill:#E1F5EE,stroke:#0F6E56,color:#085041
           classDef cluster3 fill:#FAECE7,stroke:#993C1D,color:#712B13
@@ -341,6 +459,23 @@ PHASE V-3 — BUILD MERMAID DIAGRAMS (two tiers)
     Nodes: one node per concept that survived V-2 pruning. ID = camelCase
     of the stem (e.g. The_Magical_Number_Seven → theMagicalNumberSeven).
     Label = the concept's title: field from the manifest (NOT the stem).
+
+    LABEL = ICON + SHORT NAME. Build each node label as "{icon} {short}"
+    where both come from the manifest (attached from 99_System/ICON_MAP.json
+    by extract_diagram_candidates.ps1; the renderer never invents either):
+      - `short` is a curated short service name (e.g. "Conditional Access",
+        "MFA", "Storage Account") used INSTEAD of the full concept title. It
+        keeps boxes narrow enough that the SVG stays legible when Obsidian
+        scales it to the page width. If `short` is null, fall back to the
+        full title:. 
+      - `icon` is an emoji glyph prefixed with one space. Emoji are the ONLY
+        icon form used: they render in both mmdc and Obsidian with no external
+        font/asset (FontAwesome `fa:` is not bundled by mmdc; image nodes are
+        not supported in flowchart). If `icon` is null, omit it.
+    Examples: cloudBasedIdentityCentralisation["🪪 Entra ID"],
+    scopedLeastPrivilegeAuthorizationRbac["🎭 RBAC"]. Likewise prefix the
+    subgraph label with the cluster's `cluster_icon` if present:
+    subgraph clusterId["{cluster_icon} Cluster Display"].
 
     Node shape: rectangle for concepts.
       Syntax: nodeId["Concept Title"]
@@ -382,6 +517,90 @@ PHASE V-3 — BUILD MERMAID DIAGRAMS (two tiers)
           class theMagicalNumberSeven cluster1
           class chunking cluster1
           class clusterProcessing cluster1
+
+  CONTAINMENT RENDERING (the `contains` label — Tier 2 only)
+
+    `contains` is not drawn as an arrow. It is drawn as nesting: if A contains
+    B, B's node (or B's own subgraph, if B contains things too) is declared
+    INSIDE A's subgraph. This is the move that makes a platform cluster read
+    like an architecture sketch instead of a star of arrows.
+
+    Procedure, per cluster:
+      1. Build the contains-forest from the cluster's `contains` edges
+         (parent = A, child = B for each "A contains B"). A node with no
+         incoming `contains` edge is a root; nest its children recursively.
+         Cap practical nesting at depth 4 (Region⊃Sub-level chains rarely go
+         deeper); if deeper, flatten the tail into the deepest subgraph and
+         note it in V-6.
+      2. Emit each container as a subgraph whose ID is the node's camelCase id
+         and whose label is the concept title. A leaf (contains nothing) stays
+         a plain rectangle node. The cluster subgraph is the outermost wrapper;
+         contains-roots sit directly inside it.
+      3. Nodes in the same cluster that are NOT part of any contains chain are
+         declared as flat nodes inside the cluster subgraph, alongside the
+         nested structure.
+      4. All OTHER edge types (instance-of, peers-with, protects, prerequisite-
+         for, etc.) are still drawn as arrows, even when an endpoint sits
+         inside a nested subgraph. Mermaid resolves cross-boundary edges by
+         node id; declare the edge at the cluster-subgraph level (after the
+         relevant `end`s) referencing the inner node ids.
+      5. Apply the per-cluster classDef to every node AND every container
+         subgraph node id, so nested boxes keep the cluster colour.
+
+    This relaxes STRICT RULE 7's "max nesting depth = 1" — but ONLY for
+    `contains`. A subgraph may nest another subgraph if and only if the outer
+    contains the inner via a `contains` edge. Never nest for any other reason.
+
+    Worked shape (MgmtGroup contains Sub contains RG contains Resource):
+
+      subgraph managementHierarchy["Management Hierarchy"]
+          direction TB
+          subgraph managementGroupGovernanceScaling["Management Group Governance Scaling"]
+              subgraph subscriptionBillingAccessBoundary["Subscription Billing Access Boundary"]
+                  subgraph logicalResourceGroupLifecycle["Logical Resource Group Lifecycle"]
+                      atomicAzureResourceBuilding["Atomic Azure Resource Building"]
+                  end
+              end
+          end
+          azureAccountIdentityLinkage["Azure Account Identity Linkage"]
+      end
+      azureAccountIdentityLinkage -->|prerequisite-for| subscriptionBillingAccessBoundary
+
+  VERTICAL LAYOUT (Obsidian fit) — keep every diagram tall, not wide
+
+    An Obsidian note is a narrow column. A wide SVG gets scaled down to the
+    page width until its text is unreadable. So every diagram must come out
+    TALLER than it is wide (target aspect ratio ≤ ~1.1 w/h; measure the SVG
+    viewBox in the V-4 loop and treat > ~1.2 as a fail to fix). Levers:
+
+      1. Short labels (above) — the biggest width win.
+      2. flowchart TB everywhere, INCLUDING the overview. The old `flowchart
+         LR` overview becomes a wide ribbon once a MOC has many clusters;
+         render the overview top-to-bottom and stack the cluster stadiums
+         into a column (see lever 4).
+      3. Real edges already read top-to-bottom (containment nesting, a
+         prerequisite/flows-into chain). Prefer a single spine over a hub.
+      4. INVISIBLE-LINK BACKBONE for the two width offenders:
+         - no-edge clusters (just a list of nodes): Mermaid drops isolated
+           nodes into one horizontal ROW. Chain them with invisible links
+           `a ~~~ b ~~~ c ...` to force a vertical column. `~~~` draws no
+           line and asserts no relationship — it is layout only, so it does
+           NOT violate the truthfulness rule (contrast a fake typed edge,
+           which would).
+         - hub / fan clusters (one node → many siblings, e.g. Entra ID →
+           6 services, or 4 tools → ARM): the siblings fan out horizontally.
+           Add an invisible backbone `~~~` THROUGH the sibling set to stack
+           it into a column beside the hub. Order the backbone so it never
+           duplicates a pair that already has a real typed edge (Mermaid
+           would draw both an invisible and a visible link between them).
+      5. Containment clusters: nest as usual, but if a container holds ≥2
+         sibling leaves, or the cluster has ≥2 top-level boxes, add a `~~~`
+         backbone among those siblings so they stack instead of sitting in a
+         row.
+
+    This is why the closed vocabulary needs no "no-relationship" label: a
+    cluster with no typed edges is still rendered as a clean vertical list
+    via the invisible backbone.
 
   STRICT MERMAID SYNTAX RULES (apply to every block)
 
@@ -435,8 +654,10 @@ PHASE V-3 — BUILD MERMAID DIAGRAMS (two tiers)
          end
        - Subgraph ID camelCase, label in straight double-quoted brackets.
        - `end` on its own line, never inline.
-       - Max nesting depth = 1. Subgraphs contain nodes only, never
-         other subgraphs.
+       - Default max nesting depth = 1. Subgraphs contain nodes only.
+         EXCEPTION: a `contains` edge nests the child's node/subgraph inside
+         the parent's subgraph (see "Containment rendering" above). This is
+         the only sanctioned reason to nest a subgraph in another.
 
     8. classDef and class statements:
        - Declare classDefs at the TOP of the diagram, immediately after
@@ -546,42 +767,40 @@ PHASE V-5 — WRITE DIAGRAM FILE AND PATCH MOC
 
       ## Overview
 
-      %% headline: <Tier 1 headline>
-
-      ```mermaid
-      flowchart LR
-          ...
-      ```
-
-      ![Overview SVG](../../00_Inbox/DIAGRAM_BUILD/{moc_stem}/overview.svg)
+      ![Overview - all rendered clusters in this MOC](../../00_Inbox/DIAGRAM_BUILD/{moc_stem}/overview.svg)
 
       ## Cluster Detail
 
-      ### {cluster_display 1}
+      ### {cluster_icon} {cluster_display 1}
 
-      %% headline: <Tier 2 headline>
+      ![{cluster_display 1}](../../00_Inbox/DIAGRAM_BUILD/{moc_stem}/cluster_{cluster_id_1}.svg)
 
-      ```mermaid
-      flowchart TB
-          ...
-      ```
-
-      ![{cluster_display 1} SVG](../../00_Inbox/DIAGRAM_BUILD/{moc_stem}/cluster_{cluster_id_1}.svg)
-
-      ### {cluster_display 2}
+      ### {cluster_icon} {cluster_display 2}
       ...
 
-    The Mermaid fence renders natively in Obsidian reading view (the
-    Mermaid plugin is built in). The SVG embed is a fallback for
-    contexts where Mermaid is not available (GitHub preview, etc.).
+    SVG-ONLY (no Mermaid fences). The diagram file is a clean SVG gallery:
+    overview SVG, then one heading + SVG per rendered cluster in
+    `rendered_clusters` order. The Mermaid SOURCE lives only in the .mmd
+    build files (00_Inbox/DIAGRAM_BUILD/{moc_stem}/*.mmd) — they are the
+    editable record, regenerated each run. This was changed from the old
+    Mermaid-fence form (2026-06-08) because raw fences are wide, do not
+    obey the curator's Obsidian width, and clutter the file. List clusters
+    in `rendered_clusters` order; truncate the heading at the first " - ".
 
   V-5.2 PATCH THE MOC's CLUSTER MAP SECTION
 
-    Design rule: the MOC's Cluster Map section embeds the rendered SVGs
-    DIRECTLY. The Mermaid source stays ONLY in the diagram file
-    (V-5.1). This keeps the MOC short (no large code blocks
-    intermixed with curator-authored cluster content), keeps Mermaid
-    in one place, and makes the MOC patch a small, predictable diff.
+    Design rule: the MOC embeds the rendered SVGs DIRECTLY and uses NO
+    Mermaid fences or transclusions (the Mermaid source stays in the
+    .mmd build files and the V-5.1 diagram file; the MOC shows SVG only).
+    Placement is DISTRIBUTED, not lumped together:
+      - the Overview SVG (all clusters) goes at the top, in the
+        `## Cluster Map` block — "the MOC's diagram at the beginning";
+      - each rendered cluster's Detail SVG is injected at the HEAD of its
+        own `### {cluster}` section, immediately after the heading and
+        before the first concept bullet — "each cluster's diagram at the
+        beginning of its cluster".
+    A cluster not in the rendered top-6 gets no embed. This keeps each
+    sub-diagram sitting directly above the concepts it describes.
 
     Target: 20_Learning/22_Maps of Content/{moc_stem}.md
 
@@ -597,37 +816,48 @@ PHASE V-5 — WRITE DIAGRAM FILE AND PATCH MOC
       ### Cluster 1
       ...
 
-    New shape — Overview SVG first, then one Cluster Detail SVG per
-    rendered cluster (in the same order they appear in the MOC):
+    New shape — Overview SVG at the top of the Cluster Map block, and one
+    Detail SVG injected at the head of each rendered cluster's section:
 
       ## Concept Landscape
-      ### Cluster Map
-      *Auto-generated by visualise-moc on {today}. Mermaid source in 20_Learning/24_Diagrams/Diagram_{moc_stem}.md. Edit cluster structure below or concept Links blocks, then re-run.*
+      ## Cluster Map
+      *Auto-generated by visualise-moc on {today}. SVGs rendered from the Mermaid sources in 00_Inbox/DIAGRAM_BUILD/{moc_stem}/. Edit cluster structure below or concept Links blocks, then re-run.*
 
-      ![Overview](../../00_Inbox/DIAGRAM_BUILD/{moc_stem}/overview.svg)
+      ![Overview - all clusters in this MOC](../../00_Inbox/DIAGRAM_BUILD/{moc_stem}/overview.svg)
 
-      ![{cluster_display_1}](../../00_Inbox/DIAGRAM_BUILD/{moc_stem}/cluster_{cluster_id_1}.svg)
+      ### {cluster_display 1}
 
-      ![{cluster_display_2}](../../00_Inbox/DIAGRAM_BUILD/{moc_stem}/cluster_{cluster_id_2}.svg)
+      ![{cluster_display 1} diagram](../../00_Inbox/DIAGRAM_BUILD/{moc_stem}/cluster_{cluster_id_1}.svg)
 
-      ### Cluster 1
+      - [[Concept_A]] - one-liner
+      - [[Concept_B]] - one-liner
+
+      ### {cluster_display 2}        (no rendered SVG → no embed)
+      - [[Concept_C]] - one-liner
       ...
 
-    Use markdown image syntax `![alt](path)` with the relative path,
-    NOT wikilink-style `![[file.svg]]`. The markdown form is explicit
-    about the source, survives renaming of unrelated files, and renders
-    identically in Obsidian and in any plain markdown viewer (GitHub
-    preview, web export, etc.).
+    Use markdown image syntax `![alt](path)` with the relative path, NOT
+    wikilink `![[file.svg]]`. The markdown form is explicit about the
+    source and renders in Obsidian and in any plain markdown viewer
+    (GitHub preview, web export). An optional Obsidian width may be
+    appended to the alt text (`![alt|669](path)`) — preserve it on
+    re-runs if the curator added one. SVG embed lines begin with `!`, so
+    the extractor (which reads only `- [[...]]` bullet lines for cluster
+    membership) ignores them — injecting an SVG under a cluster heading is
+    safe and does not change the manifest.
 
-    Patch protocol (PowerShell pseudocode for the agent):
+    Patch protocol (two surgical passes, never a full rewrite):
       $file = "20_Learning/22_Maps of Content/{moc_stem}.md"
       $content = Get-Content $file -Raw -Encoding UTF8
-      # Match from "### Cluster Map" up to (but not including) the next "### "
-      $pattern = '(?ms)### Cluster Map.*?(?=^### )'
-      $replacement = (built from the rendered tier list: one notice line, then
-                       one image embed line per rendered tier)
-      $new = [regex]::Replace($content, $pattern, $replacement, 'Multiline')
-      Set-Content -Path $file -Value $new -Encoding UTF8
+      # Pass 1 - Overview: replace the `## Cluster Map` body (notice line +
+      #   any prior transclusions/SVG embeds) up to the first `### ` with
+      #   the notice line + the Overview SVG embed.
+      # Pass 2 - per rendered cluster: after each `### {cluster_display}`
+      #   heading whose cluster_id has a rendered SVG, insert
+      #   "\n\n![{cluster_display} diagram](...cluster_{id}.svg)\n".
+      #   Idempotent: if the next non-blank line is already that embed,
+      #   replace it in place (so widths/edits survive); never duplicate.
+      Set-Content -Path $file -Value $content -Encoding UTF8
 
     If the file has no `### Cluster Map` section yet (newer MOC), insert
     one immediately after the `## Concept Landscape` header, BEFORE the

@@ -18,11 +18,39 @@ pass. Your job is to DISCOVER latent relationships between concept notes that
 already live in DIFFERENT Maps of Content, and record them — grounded in the
 notes' own text — in the target MOCs' `## Cross-Domain Links` sections.
 
-This is NOT the same job as `process-inbox` Phase 4. Phase 4 is reactive: it
-only routes edges that a *new* note's author already wrote into its Links
-block. `weave-links` is retroactive and generative: it sweeps notes that are
-already in the vault (including `status: final` notes) for relationships that
-nobody wrote down, and connects them.
+This is NOT the same job as `process-inbox` Phase 4. `weave-links` is
+retroactive: it sweeps notes that are already in the vault (including
+`status: final` notes) for relationships that nobody wrote down, and connects
+them.
+
+DISCOVERY OWNERSHIP — PARTITIONED BY SUBJECT (amended 2026-08-12 by
+[[Concept Corroboration and the Overlap Audit Gate - Decision]], memo IMP-46)
+
+Both pipelines now DISCOVER relationships; they are separated by whose notes
+they may discover them for, not by whether they discover at all:
+
+  `process-inbox` may generate an edge ONLY where one endpoint is a note
+  created in THIS RUN. `weave-links` owns every pair where both endpoints
+  predate the run.
+
+The test is a boolean — *was this stem written in this run?* — so it is checked
+mechanically rather than trusted. Before the amendment this file reserved all
+generative discovery to `weave-links` ("Phase 4 is reactive: it only routes
+edges that a new note's author already wrote into its Links block"), which
+stopped being true when Phase 2 gained similarity-driven candidate generation.
+
+Both safety rules survive untouched, which is why the partition is by subject
+rather than by surface: `weave-links` still never writes a concept note, and
+`process-inbox` only ever writes concept notes it just created.
+
+Both call the SAME candidate generator — `overlap_candidates.py`
+(`candidates_for()`), floored at dense cosine 0.70. `process-inbox` calls it
+via `generate()` (from `launch-process-inbox.ps1`, against new Note Pipe
+blocks); `weave-links` calls it via `weave()` (from `launch-weave-links.ps1`,
+against the existing concepts in IN_SCOPE_MOCS — see PHASE IC-2). Both are
+pre-flight steps that run BEFORE the agent starts, not something either agent
+decides to do. Two implementations of one search WILL drift; see the standing
+warning in `99_System/Claude/vault-graph/SKILL.md`.
 
 You are provided with:
   [SCOPE]        — one or more MOC stems or domain names to weave together
@@ -80,7 +108,7 @@ you add must use this form. The order of the subject follows the direction of
 the label (A <label> B means "A <label> B").
 
 ════════════════════════════════════════════════════════════════
-PHASE IC-0 — LOAD INDEX AND RESOLVE SCOPE (once per run)
+PHASE IC-0 — LOAD INDEX AND CONFIRM SCOPE (once per run)
 ════════════════════════════════════════════════════════════════
 Read 00_Inbox/VAULT_INDEX.json. (The staleness gate in CLAUDE.md has already
 confirmed it is today's; do not re-read it later in the run.)
@@ -90,15 +118,24 @@ Parse working sets:
   VALID_MOCS  = set of all MOC stems  (mocs[*].stem)
 Store per note: stem, title, description, domain, moc, status.
 
-Resolve [SCOPE] to IN_SCOPE_MOCS:
-  - If the user named MOC stems, use them.
-  - If the user named domains (e.g. "AI", "Data"), map each to its MOC(s)
-    using mocs[*].domain and the MOC title. If a domain maps to several MOCs,
-    list them back and confirm before proceeding.
-  - Require at least 2 MOCs. A weave needs two sides.
+Read 00_Inbox/WEAVE_CANDIDATES.json — its `scope` field IS IN_SCOPE_MOCS.
+`launch-weave-links.ps1` (the only way this command should be invoked) already
+validated every stem against the index and required at least 2 MOCs before
+building this manifest, so IC-0 does not re-resolve scope — it confirms this
+run's manifest matches what the human asked for:
+  - If `generated` is not today, or `scope` does not match the MOC stems the
+    human named, STOP: "⚠ Manifest is stale or scope mismatch — re-run
+    launch-weave-links.ps1 -MocStems {the stems you want}." Do not proceed on
+    a manifest built for a different scope.
+  - If the user named domains rather than stems (e.g. "AI", "Data") and no
+    manifest exists yet, map each domain to its MOC(s) using mocs[*].domain
+    and the MOC title, list the resolved stems back, and tell them to run
+    `launch-weave-links.ps1 -MocStems {resolved stems}` — do not fall back to
+    generating candidates yourself; IC-2 now depends on the manifest.
 
 State the scope before any further work (per BEFORE EVERY RUN):
-  "Weaving N MOCs: {list}. Reading index only until candidates are confirmed."
+  "Weaving N MOCs: {list}. Manifest: {concepts_in_scope} concepts, {total}
+   cross-MOC candidate(s) at dense-cosine >= {dense_floor}."
 
 ════════════════════════════════════════════════════════════════
 PHASE IC-1 — INVENTORY EXISTING EDGES (index + targeted section reads)
@@ -111,21 +148,40 @@ EXISTING_EDGES is the dedupe guard for IC-5. An edge already present (in
 either MOC, in either direction, under any label) is NOT a new candidate.
 
 ════════════════════════════════════════════════════════════════
-PHASE IC-2 — GENERATE CANDIDATES (index descriptions only — no note bodies)
+PHASE IC-2 — READ CANDIDATES (00_Inbox/WEAVE_CANDIDATES.json — no note bodies)
 ════════════════════════════════════════════════════════════════
-Working only from notes[*].description in the index, propose candidate edges
-where the two endpoints sit in DIFFERENT in-scope MOCs.
+Do NOT generate candidates yourself. `launch-weave-links.ps1` already built
+them mechanically via `overlap_candidates.py weave` — the SAME adaptive
+SEED_K/EXPAND_K search at the SAME dense-cosine 0.70 floor that
+`process-inbox` uses (`generate()`), against the SAME corpus (concept notes
+only). This closes the gap this file used to have: before this phase existed,
+weave-links had no numeric floor at all — it eyeballed index descriptions
+directly, which is exactly the two-implementations drift the standing warning
+in `vault-graph/SKILL.md` cautions against.
 
-A candidate is a tuple: (concept_A, MOC_A, proposed_label, concept_B, MOC_B,
-one-line rationale).
+For each `concepts[]` entry in the manifest, its `candidates[]` are the pairs
+that cleared the floor (adaptive expansion may include one below-floor
+candidate per concept — check each candidate's own `above_floor`). For each
+candidate, using its `title` and the source concept's `title`/`description`
+from the index, propose the strongest label the descriptions can justify —
+this labeling judgment is still yours; the manifest only supplies WHICH pairs
+are worth attention, never the relationship type or the verdict.
+
+A candidate is a tuple: (concept_A, MOC_A, proposed_label, concept_B,
+foreign MOC(s), one-line rationale).
 
 Rules:
-  - Both endpoints must be concept notes in DIFFERENT MOCs. Same-MOC edges are
-    out of scope here — they belong in `## Concept Relationships` via
-    process-inbox.
+  - Only pairs the manifest actually lists are candidates. Do not propose a
+    pair the manifest didn't surface, and do not drop a pair the manifest
+    surfaced just because it seems weak — that judgment belongs to IC-3, which
+    reads both full note bodies; a `dense_cos` alone is never grounds to keep
+    or discard (see the module's own "WHAT THIS DOES NOT DO" — antonyms score
+    maximally similar too).
   - Drop any candidate already in EXISTING_EDGES.
   - Prefer the strongest label the descriptions can justify; only fall back to
     related-to when no sharper label fits.
+  - A concept with an empty `candidates[]` (or `skipped` set) proposes nothing
+    this run — that is a correct outcome, not a defect to work around.
   - This phase is allowed to over-generate. IC-3 is the filter.
 
 ════════════════════════════════════════════════════════════════

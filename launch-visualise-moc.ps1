@@ -1,19 +1,18 @@
 # launch-visualise-moc.ps1
-# Pre-flight + post-flight wrapper for the visualise-moc agent.
+# End-to-end wrapper for visualise-moc. FULLY DETERMINISTIC — no `claude`
+# invocation; the agent is not in this loop.
 #
-# Pre-flight:
-#   1. mmdc doctor check (global preferred, npx fallback, install hint if missing)
+# Steps:
+#   1. mmdc doctor check (global preferred, npx fallback, install hint if missing);
+#      writes 00_Inbox\MMDC_MODE.txt, which build_diagrams.ps1 reads
 #   2. Regenerate VAULT_INDEX.json
 #   3. Validate the MOC stem against the index
 #   4. Run extract_diagram_candidates.ps1 to build the per-MOC manifest
 #   5. Create the DIAGRAM_BUILD/{moc_stem}/ working folder
-#   6. Invoke claude with visualise-moc {moc_stem}
+#   6. Run build_diagrams.ps1 (renders the SVGs and patches the MOC)
 #
 # Post-flight:
-#   - Render DIAGRAM_RUN_RESULT.json as a console-aligned table
-#
-# Validation of generated Mermaid is performed by the agent itself
-# (PHASE V-4 in docs/visualisation-pipeline.md), not by this launcher.
+#   - Summarise build_diagrams.ps1's DIAGRAM_RENDER_PLAN.json (tiers, wide/failed)
 
 param(
     [Parameter(Mandatory=$true)]
@@ -34,89 +33,6 @@ $OutputEncoding = [System.Text.UTF8Encoding]::new()
 
 $vaultRoot = $VaultRoot
 $indexPath = Join-Path $vaultRoot "00_Inbox\VAULT_INDEX.json"
-
-# --- Run-table renderer (post-flight) -----------------------------------
-
-function Show-DiagramRunTable {
-    param([string]$JsonPath)
-    if (-not (Test-Path $JsonPath)) {
-        Write-Host "(no run-result JSON found at $JsonPath)" -ForegroundColor DarkGray
-        return
-    }
-    try {
-        $result = Get-Content $JsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    } catch {
-        Write-Host "(could not parse run-result JSON: $($_.Exception.Message))" -ForegroundColor DarkYellow
-        return
-    }
-    if (-not $result.tiers -or @($result.tiers).Count -eq 0) {
-        Write-Host "(run-result has no tiers)" -ForegroundColor DarkGray
-        return
-    }
-
-    $cols = @(
-        [PSCustomObject]@{ Key="tier";     Header="Tier";     Cap=10 }
-        [PSCustomObject]@{ Key="cluster";  Header="Cluster";  Cap=40 }
-        [PSCustomObject]@{ Key="nodes";    Header="Nodes";    Cap=6  }
-        [PSCustomObject]@{ Key="edges";    Header="Edges";    Cap=6  }
-        [PSCustomObject]@{ Key="headline"; Header="Headline"; Cap=50 }
-        [PSCustomObject]@{ Key="status";   Header="Status";   Cap=14 }
-    )
-
-    foreach ($c in $cols) {
-        $max = $c.Header.Length
-        foreach ($row in $result.tiers) {
-            $v = if ($null -ne $row.($c.Key)) { [string]$row.($c.Key) } else { "" }
-            if ($v.Length -gt $max) { $max = $v.Length }
-        }
-        if ($max -gt $c.Cap) { $max = $c.Cap }
-        $c | Add-Member -NotePropertyName Width -NotePropertyValue $max -Force
-    }
-
-    Write-Host ""
-    Write-Host ("Diagram run summary - {0} ({1})" -f $result.moc_stem, $result.generated) -ForegroundColor Cyan
-
-    $headerLine = ($cols | ForEach-Object { $_.Header.PadRight($_.Width) }) -join "  "
-    $sepLine    = ($cols | ForEach-Object { ("-" * $_.Width) }) -join "  "
-    Write-Host $headerLine -ForegroundColor White
-    Write-Host $sepLine    -ForegroundColor DarkGray
-
-    foreach ($row in $result.tiers) {
-        $line = ($cols | ForEach-Object {
-            $val = if ($null -ne $row.($_.Key)) { [string]$row.($_.Key) } else { "" }
-            if ($val.Length -gt $_.Width) { $val = $val.Substring(0, $_.Width - 3) + "..." }
-            $val.PadRight($_.Width)
-        }) -join "  "
-
-        $colour = "Gray"
-        if ($row.status -match "(?i)rendered") { $colour = "Green" }
-        if ($row.status -match "(?i)quarantined|failed") { $colour = "Red" }
-        if ($row.status -match "(?i)skipped|warn") { $colour = "Yellow" }
-
-        Write-Host $line -ForegroundColor $colour
-    }
-
-    if ($result.grice) {
-        Write-Host ""
-        $g = $result.grice
-        Write-Host ("Grice audit: Quantity {0} | Quality {1} | Relevance {2} | Manner {3}" -f $g.quantity, $g.quality, $g.relevance, $g.manner) -ForegroundColor DarkCyan
-    }
-    if ($result.pruned) {
-        $p = $result.pruned
-        Write-Host ("Pruned: {0} related-to edges, {1} dangling nodes" -f $p.related_to_edges, $p.dangling_nodes) -ForegroundColor DarkCyan
-    }
-    if ($result.warnings -and @($result.warnings).Count -gt 0) {
-        Write-Host ""
-        Write-Host "Warnings:" -ForegroundColor Yellow
-        foreach ($w in $result.warnings) { Write-Host ("  - {0}" -f $w) -ForegroundColor Yellow }
-    }
-    if ($result.quarantined -and @($result.quarantined).Count -gt 0) {
-        Write-Host ""
-        Write-Host "Quarantined (open and fix manually):" -ForegroundColor Red
-        foreach ($q in $result.quarantined) { Write-Host ("  - {0}" -f $q) -ForegroundColor Red }
-    }
-    Write-Host ""
-}
 
 # --- Pre-flight 1: mmdc doctor check ------------------------------------
 
@@ -149,7 +65,7 @@ if (-not $mmdcMode) {
     }
 }
 
-# Write mode sentinel so the agent knows which command form to use
+# Write mode sentinel so build_diagrams.ps1 knows which command form to use
 $modePath = Join-Path $vaultRoot "00_Inbox\MMDC_MODE.txt"
 [System.IO.File]::WriteAllText($modePath, $mmdcMode, (New-Object System.Text.UTF8Encoding($false)))
 
@@ -201,21 +117,29 @@ if (-not (Test-Path $buildFolder)) {
     New-Item -ItemType Directory -Path $buildFolder -Force | Out-Null
 }
 
-# Clear stale .mmd/.svg from any prior run for this MOC so the agent
+# Clear stale .mmd/.svg from any prior run for this MOC so the generator
 # starts with an empty work area.
 Get-ChildItem $buildFolder -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 
-# Clear any prior run-result JSON so a partial render doesn't get
-# mis-rendered in the post-flight table.
-$resultPath = Join-Path $vaultRoot "00_Inbox\DIAGRAM_RUN_RESULT.json"
-if (Test-Path $resultPath) { Remove-Item $resultPath -Force }
-
-# --- Invoke the agent ---------------------------------------------------
+# --- Build diagrams (deterministic generator; no agent in the loop) -----
 
 Write-Host ""
-Write-Host "Starting visualisation agent..." -ForegroundColor Green
-claude --remote-control "PKM Visualise MOC" "visualise-moc $MocStem"
+Write-Host "Building diagrams (deterministic generator)..." -ForegroundColor Green
+& (Join-Path $vaultRoot "build_diagrams.ps1") -MocStem $MocStem
 
-# --- Post-flight: render run table --------------------------------------
+# --- Post-flight: summarise the render plan -----------------------------
 
-Show-DiagramRunTable -JsonPath $resultPath
+$planPath = Join-Path $vaultRoot "00_Inbox\DIAGRAM_RENDER_PLAN.json"
+if (Test-Path $planPath) {
+    try {
+        $plan = Get-Content $planPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $wide = @($plan.tiers | Where-Object { $_.status -eq "wide" })
+        $fail = @($plan.tiers | Where-Object { $_.status -eq "failed" })
+        Write-Host ""
+        Write-Host ("Render complete: {0} tiers, embed width {1}px, cap {2}." -f @($plan.tiers).Count, $plan.display_width, $plan.cap) -ForegroundColor Cyan
+        if ($fail.Count -gt 0) { Write-Host ("  FAILED: "        + (($fail | ForEach-Object { $_.cluster }) -join ", ")) -ForegroundColor Red }
+        if ($wide.Count -gt 0) { Write-Host ("  wide (review): " + (($wide | ForEach-Object { $_.cluster }) -join ", ")) -ForegroundColor Yellow }
+    } catch {
+        Write-Host "(could not parse render plan: $($_.Exception.Message))" -ForegroundColor DarkYellow
+    }
+}

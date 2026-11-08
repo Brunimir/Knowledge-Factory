@@ -4,10 +4,12 @@
 # at 00_Inbox/FLASHCARD_CANDIDATES.json. The agent reads ONLY the manifest
 # instead of opening 27+ source files individually.
 #
-# Eligibility: status:final AND reviewed:true AND flashcards:false
+# Eligibility: status:final AND flashcards:false
+# (`reviewed` was retired 2026-08-02 - it never carried information `status` did
+#  not already carry: reviewed:true never occurred without status:final.)
 
 param(
-    [string]$VaultRoot = $(if ($env:VAULT_ROOT) { $env:VAULT_ROOT } else { (Get-Location).Path })
+    [string]$VaultRoot = $(if ($env:VAULT_ROOT) { $env:VAULT_ROOT } else { Split-Path -Parent $MyInvocation.MyCommand.Path })
 )
 
 $indexPath      = Join-Path $VaultRoot "00_Inbox\VAULT_INDEX.json"
@@ -23,7 +25,7 @@ $index = Get-Content $indexPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $today = Get-Date -Format "yyyy-MM-dd"
 
 $eligible = @($index.notes | Where-Object {
-    $_.status -eq "final" -and $_.reviewed -eq $true -and $_.flashcards -eq $false
+    $_.status -eq "final" -and $_.flashcards -eq $false
 })
 
 Write-Host "Found $($eligible.Count) eligible candidates." -ForegroundColor Cyan
@@ -175,6 +177,7 @@ $manifest = [PSCustomObject]@{
     generated      = $today
     eligible_count = $candidates.Count
     skipped_count  = $skipped.Count
+    include_stubs  = $false   # launcher resolves this once (prompt or -IncludeStubs); agent obeys silently
     candidates     = $candidates
     skipped        = $skipped
 }
@@ -190,7 +193,7 @@ Write-Host "  Skipped (file missing): $($skipped.Count)"
 
 $stubs = @($candidates | Where-Object { $_.is_stub })
 if ($stubs.Count -gt 0) {
-    Write-Host "  Stubs flagged (agent will ask before processing): $($stubs.Count)" -ForegroundColor Yellow
+    Write-Host "  Stubs flagged (launcher will resolve once before the agent starts): $($stubs.Count)" -ForegroundColor Yellow
     $stubs | ForEach-Object { Write-Host "    - $($_.stem): $($_.stub_reason)" }
 }
 
@@ -206,3 +209,4 @@ if ($missingRequired.Count -gt 0) {
         Write-Host "    - $($_.stem): missing $($missing -join ', ')"
     }
 }
+

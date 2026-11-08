@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-import sys, io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+import sys
+# ENV-33: mutate the wrapper in place. Rebinding it dropped the last reference to
+# the caller's own wrapper, whose __del__ closed the shared buffer - so any script
+# that rebound sys.stdout and then imported this module died on its next print.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 """
 generate_index.py — PKM Vault Index Generator
 Place this file at the root of your Obsidian vault.
@@ -55,11 +59,16 @@ OUTPUT
 
     Concept (notes[]) fields:
       stem, title, type, status, description, domain, source_type,
-      moc[], reviewed, flashcards, concept_role, created, updated,
+      moc[], flashcards, source_count, trust, concept_role, created, updated,
       aliases[], tags[]
       (concept_role ∈ study|reference|scaffold — optional; absent ⇒ "study".
-       Separates a note's stable purpose from the transient reviewed/flashcards
-       booleans, so reference/scaffold notes are not nagged for missing cards.)
+       Separates a note's stable purpose from the transient flashcards
+       boolean, so reference/scaffold notes are not nagged for missing cards.)
+      (`reviewed` RETIRED 2026-08-02 — it never carried information `status`
+       did not. Flashcard eligibility is now status:final AND flashcards:false.)
+      (source_count/trust are STORED and REQUIRED, maintained by
+       concept_schema_sync.ps1; the indexer re-derives trust from the stored
+       source_count and flags a stale score. 0/0.0 are legitimate values.)
 
     Pattern fields:
       stem, title, status, description, domain, problem, problem_type,
@@ -94,7 +103,8 @@ from datetime import date
 
 # ── CONFIGURATION ─────────────────────────────────────────────────────────────
 
-VAULT = Path(__file__).parent
+from kzn_paths import VAULT_PATH as VAULT, REPO_PATH as REPO   # the ONE home for the roots
+from kzn_paths import without_twins   # IMP-69: a cloud-sync twin is not a file
 INDEX = VAULT / "00_Inbox" / "VAULT_INDEX.json"
 
 # Content-hash incremental cache (Phase 1c). Sidecar keyed by file path, storing
@@ -106,7 +116,7 @@ INDEX = VAULT / "00_Inbox" / "VAULT_INDEX.json"
 # whenever the parse/validate/extract logic below changes, which invalidates
 # every entry so stale records can never leak into the index.
 CACHE = VAULT / "00_Inbox" / ".index_cache.json"
-CACHE_VERSION = 3   # bump on any parse/validate/extract change (v3: concept_role + decision affected_solutions)
+CACHE_VERSION = 5   # bump on any parse/validate/extract change (v5: NON_ARTEFACT_TYPES skip)
 
 # Explicit allowlist — only these directories are scanned (relative to VAULT)
 SCAN_DIRS = [
@@ -120,9 +130,27 @@ SCAN_DIRS = [
 # Required fields for concept notes — agent quarantines notes missing any of these
 REQUIRED_CONCEPT_FIELDS = {
     "title", "icon", "type", "status", "description",
-    "domain", "source_type", "moc", "reviewed", "flashcards",
+    "domain", "source_type", "moc", "flashcards",
+    "source_count", "trust",
     "created", "updated",
 }
+
+# Trustworthiness scoring (stored on the note, maintained by concept_schema_sync.ps1).
+#   base  = 0.0                if source_count == 0   (no evidence behind the claim)
+#         = 2 - 1/source_count otherwise              (1.0, 1.5, 1.67, 1.75 … → 2.0)
+#   trust = base + 0.2 if status == "final"
+# The curve has diminishing returns and an asymptote at 2.0, so corroboration
+# always helps but never dominates; the final bonus caps the scale at 2.2.
+TRUST_FINAL_BONUS = 0.2
+
+
+def compute_trust(source_count: int, status: str) -> float:
+    """The single definition of the trust score. The sync script and the
+    validator below both read it from here, so the two can never disagree."""
+    base = 0.0 if source_count <= 0 else 2 - (1 / source_count)
+    if status == "final":
+        base += TRUST_FINAL_BONUS
+    return round(base, 2)
 
 REQUIRED_MOC_FIELDS = {
     "title", "type", "status", "description", "domain",
@@ -139,9 +167,19 @@ REQUIRED_DECISION_FIELDS = REQUIRED_BASE_FIELDS | {"decision_type"}
 REQUIRED_IDEA_FIELDS     = REQUIRED_BASE_FIELDS
 
 # Controlled vocabularies — agent flags deviations
-VALID_DOMAINS           = {"learning", "writing", "presentations", "biology", "strategy", "multiple", "enterprise-architecture", "ai-systems", "data-engineering", "cybersecurity", "economics"}
+VALID_DOMAINS           = {"learning", "writing", "presentations", "biology", "strategy", "multiple", "enterprise-architecture", "ai-systems", "data-engineering", "cybersecurity", "economics", "career", "nutrition", "consumer-decisions"}
 VALID_STATUSES          = {"draft", "final"}
 VALID_TYPES             = {"concept", "moc", "pattern", "idea", "solution", "decision"}
+
+# Documents that live in the vault but are NOT artefacts. They declare what they
+# are; the indexer skips them instead of misclassifying them.
+#
+# Why this exists: dispatch treats an UNRECOGNISED `type:` as a concept and
+# validates it against REQUIRED_CONCEPT_FIELDS, so a proposal or a spec with
+# honest frontmatter was reported as a malformed concept. The established
+# workaround was to carry no frontmatter at all (some spec folders did this), but
+# that throws away real metadata. Declaring intent beats hiding from the parser.
+NON_ARTEFACT_TYPES      = {"proposal", "documentation", "element-card", "flashcard-batch"}
 VALID_SOURCE_TYPES      = {"book", "course", "article", "notebooklm", "shower-thought"}
 VALID_DECISION_TYPES    = {"establishing", "changing", "deviating"}
 VALID_DECISION_STATUSES = {"proposed", "accepted", "superseded", "expired"}
@@ -245,14 +283,43 @@ def validate_concept(stem: str, fields: dict) -> list[str]:
     if not isinstance(aliases, list) or len(aliases) < 2:
         errors.append(f"aliases must be a list with ≥ 2 entries — got: {aliases}")
 
-    for bf in ("reviewed", "flashcards"):
-        val = fields.get(bf)
-        if val is not None and not isinstance(val, bool):
-            errors.append(f"{bf} must be true or false — got: {repr(val)}")
+    val = fields.get("flashcards")
+    if val is not None and not isinstance(val, bool):
+        errors.append(f"flashcards must be true or false — got: {repr(val)}")
+
+    # `reviewed` was retired 2026-08-02: it carried no information `status` did
+    # not already carry (reviewed:true never occurred without status:final).
+    # Flashcard eligibility is now status:final AND flashcards:false.
+    if "reviewed" in fields:
+        errors.append("`reviewed` is retired — remove it (run concept_schema_sync.ps1 -Apply)")
+
+    # source_count / trust are STORED and maintained by concept_schema_sync.ps1.
+    # The indexer never recomputes source_count (that needs the note body, which
+    # it does not read) but it DOES re-derive trust from the stored count, so a
+    # stale or hand-edited score cannot pass unnoticed.
+    # REQUIRED as of 2026-08-02: the migration is complete (all 811 concepts
+    # carry both), so an unsynced note is now a hard failure rather than a
+    # tolerated in-progress state. Absence is caught by REQUIRED_CONCEPT_FIELDS
+    # above; the checks below police the VALUES.
+    sc = fields.get("source_count")
+    if sc is not None:
+        if not isinstance(sc, int) or isinstance(sc, bool) or sc < 0:
+            errors.append(f"source_count must be a non-negative integer — got: {repr(sc)}")
+        else:
+            tr = fields.get("trust")
+            expected = compute_trust(sc, str(fields.get("status", "")).strip())
+            if tr is not None:
+                if not isinstance(tr, (int, float)) or isinstance(tr, bool):
+                    errors.append(f"trust must be a number — got: {repr(tr)}")
+                elif round(float(tr), 2) != expected:
+                    errors.append(
+                        f"trust is stale: {tr} stored but {expected} computed "
+                        f"({sc} source(s), status:{fields.get('status')}) — run concept_schema_sync.ps1 -Apply"
+                    )
 
     # concept_role is OPTIONAL (absent ⇒ "study"); only its VALUE is policed, so
     # no existing concept needs migrating. Distinguishes study/reference/scaffold
-    # intent from the transient reviewed/flashcards booleans.
+    # intent from the transient flashcards boolean.
     cr = fields.get("concept_role")
     if cr is not None and cr != "" and cr not in VALID_CONCEPT_ROLES:
         errors.append(f"invalid concept_role: '{cr}' — must be one of {sorted(VALID_CONCEPT_ROLES)}")
@@ -357,8 +424,9 @@ def extract_note_record(stem: str, fields: dict) -> dict:
         "domain":      str_field(fields, "domain"),
         "source_type": str_field(fields, "source_type"),
         "moc":         list_field(fields, "moc"),
-        "reviewed":    bool(fields.get("reviewed", False)),
         "flashcards":  bool(fields.get("flashcards", False)),
+        "source_count": int(fields.get("source_count") or 0),
+        "trust":       float(fields.get("trust") or 0.0),
         "concept_role": str_field(fields, "concept_role", "study"),  # study | reference | scaffold
         "created":     str_field(fields, "created"),
         "updated":     str_field(fields, "updated"),
@@ -483,6 +551,11 @@ def classify_and_extract(stem: str, content: str) -> dict:
 
     note_type = str(fields.get("type", "")).strip()
 
+    # Declared non-artefact: skip like a frontmatter-less file, but without
+    # forcing the document to strip its own metadata to stay invisible.
+    if note_type in NON_ARTEFACT_TYPES:
+        return {"kind": "skip_non_artefact", "stem": stem, "record": None, "errors": []}
+
     # MOC detection — by filename prefix OR by explicit type (fname == stem+'.md')
     if stem.startswith("MOC_") or note_type == "moc":
         return {"kind": "moc", "stem": stem,
@@ -510,7 +583,7 @@ def route(result: dict, buckets: dict, skipped_no_frontmatter: list) -> None:
     and validation_errors, exactly as the original inline scan did."""
     kind = result["kind"]
     stem = result["stem"]
-    if kind == "skip_no_fm":
+    if kind == "skip_no_fm" or kind == "skip_non_artefact":
         skipped_no_frontmatter.append(stem)
         return
     if kind == "parse_error":
@@ -570,7 +643,7 @@ def scan_vault(vault: Path, scan_dirs: list) -> dict:
         for root, dirs, files in os.walk(target):
             dirs[:] = [d for d in dirs if not d.startswith(".")]
 
-            for fname in files:
+            for fname in without_twins(files):
                 if not fname.endswith(".md"):
                     continue
                 stem = fname[:-3]
@@ -581,7 +654,12 @@ def scan_vault(vault: Path, scan_dirs: list) -> dict:
                 seen_stems.add(stem)
 
                 fpath = Path(root) / fname
-                rel = fpath.relative_to(vault).as_posix()
+                try:
+                    rel = fpath.relative_to(vault).as_posix()
+                except ValueError:
+                    # a REPO-rooted scan dir; namespace the cache key so it can
+                    # never collide with a vault-relative one
+                    rel = "repo:" + fpath.relative_to(REPO).as_posix()
 
                 raw = fpath.read_bytes()
                 digest = hashlib.sha256(raw).hexdigest()
@@ -680,3 +758,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -13,8 +13,9 @@ created: 2026-04-19
 updated: 2026-04-28
 moc:
   - MOC_Learning_and_Memory
-reviewed: true
 flashcards: true
+source_count: 1
+trust: 1.2
 tags:
 ---
 ## Core Idea (Summary)

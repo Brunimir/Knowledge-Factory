@@ -24,7 +24,7 @@ Knowledge flows through five engines in a continuous loop:
 
 ![The five engines of the Knowledge Factory — Capture, Process, Interconnect, Retain (optional), Produce. Human verification is optional, Retain can be skipped for reference-only notes, and a gem-capture loop turns new insights from conversations into fresh input in the inbox.|697](5-engines.svg)
 
-Raw material enters through **Capture**, is atomised into clean concept notes by **Process**, is related to the rest of the vault by **Interconnect**, is *optionally* committed to long-term memory by **Retain**, and is put to work by **Produce**. Solutions and flashcards in turn surface gaps, which feed the next capture cycle(Note to claude, to clarify)
+Raw material enters through **Capture**, is atomised into clean concept notes by **Process**, is related to the rest of the vault by **Interconnect**, is *optionally* committed to long-term memory by **Retain**, and is put to work by **Produce**. Solutions and flashcards in turn surface gaps, which feed the next capture cycle.
 
 ### 1.2 The five engines
 
@@ -33,6 +33,7 @@ Gets vault-worthy ideas out of conversations and sources and into the inbox, wit
 - **`extract-gems`** — at the end of a substantive Claude conversation, identifies the genuinely vault-worthy "gems" and routes each one: a new candidate, a one-line refinement of an existing note, or *exclude*. Conversation-scoped, so it never runs the full pipeline by accident.
 - **Extraction prompts** — `EXTRACT_PROMPT.md` (after a Claude conversation) and `EXTRACT_PROMPT_NotebookLM.md` (for books/PDFs or other soucres via NotebookLM) define a strict, machine-readable block format: a falsifiable claim, a named mechanism, a boundary condition, an application, and typed edges to other concepts.
 - **Output:** raw structured notes land in `00_Inbox/` (Note Stock → Note Pipe → AI_Candidates), never directly in the vault.
+- **`verify-capture-fidelity`** (skill: `pkm-capture-verify`) — judges each checkable claim in a capture against its frozen source before it can become a note, writing a faithful/drifted/fabricated/unverifiable verdict; a fabrication caught here costs one Note Pipe edit, versus a Decision after the note is promoted and locked. Runs automatically as the first step of `process-inbox`, so a clean capture pays nothing extra for it.
 
 #### ⚙️ Process
 Turns raw inbox notes into atomic, self-contained concept notes.
@@ -42,13 +43,13 @@ Turns raw inbox notes into atomic, self-contained concept notes.
 
 #### 🔗 Interconnect
 Makes the vault more than the sum of its notes.
-- **`weave-links`** — a retroactive pass that discovers cross-domain relationships between concepts living in *different* MOCs, recording each edge in the canonical prose-verb format using a closed 7-label vocabulary (`supports`, `contradicts`, `prerequisite-for`, `instance-of`, `mechanism-of`, `mitigates`, `related-to`).
-- **`visualise-moc {stem}`** — renders a two-tier Mermaid concept map (overview + cluster detail) for a MOC, fully derived from a pre-extracted manifest and regenerated idempotently.
+- **`weave-links`** — a retroactive pass that discovers cross-domain relationships between concepts living in *different* MOCs, recording each edge in the canonical prose-verb format using a closed 7-label epistemic vocabulary (`supports`, `contradicts`, `prerequisite-for`, `instance-of`, `mechanism-of`, `mitigates`, `related-to`), plus 5 optional, curator-authored structural labels (`contains`, `flows-into`, `inherits-to`, `peers-with`, `protects`) for architecture-style MOCs. Run via `launch-weave-links.ps1 -MocStems A B [...]`, which pre-builds a cross-MOC candidate manifest (`overlap_candidates.py weave`) at the *same* calibrated dense-cosine 0.70 floor `process-inbox` uses for its own candidate generation — one shared search, run before the agent starts either way, so the two discovery paths cannot drift to different thresholds. Ownership is partitioned by subject: `process-inbox` may only propose an edge touching a note it just wrote this run, `weave-links` owns every pair that predates the run. The agent still judges every candidate against both notes' actual text (Safety Rule #7) before writing anything — the floor gates *attention*, never the verdict.
+- **`visualise-moc {stem}`** — renders a two-tier Mermaid concept map (overview + cluster detail) for a MOC. **Fully deterministic** — `extract_diagram_candidates.ps1` builds the manifest and `build_diagrams.ps1` renders + patches the MOC; no agent is invoked.
 - **`vault-health`** (skill: `pkm-review`) — surfaces *actionable* notes (final notes still awaiting flashcards), MOC coverage, orphans, flashcard coverage, and acronym/knowledge gaps. Drafts are a valid permanent state and are never nagged — the human is deliberately not the bottleneck.
 
 #### 🧠 Retain
 Locks finalised knowledge into long-term memory through spaced repetition.
-- **`generate-flashcards`** (skill: `pkm-flashcards`) — generates dense Anki cards from `status: final` concept notes: three cards per concept (WHAT / HOW / WHEN), one batch file per run for safe AnkiConnect syncing.
+- **`generate-flashcards`** (skill: `pkm-flashcards`) — generates short Anki cards from `status: final` concept notes: one idea per card, up to 6 per concept, about 9 words on the back and 18 at most, one batch file per run for safe AnkiConnect syncing.
 - **Output:** flashcards in `20_Learning/23_FlashCards/`, synced to Anki. (The Capacity Model in §2 bounds how much new material enters Retain each week so the review load stays sustainable.)
 - Anki rides your brain's forgetting curve — resurfacing each card the instant before it would be cleared — so every recall signals "keep this," converting short-lived facts into durable long-term memory.
 
@@ -59,11 +60,12 @@ Puts mapped knowledge to work as real-world deliverables. (Canonically the **Out
 
 ### 1.3 The command surface
 
-Claude Code dispatches on the first word of your request. Seven pipeline commands, plus one cross-cutting retrieval command:
+Claude Code dispatches on the first word of your request. Eight pipeline commands, plus one cross-cutting retrieval command:
 
 | Command | Engine | What it does |
 |---|---|---|
 | `extract-gems` | Capture | Pull vault-worthy gems out of the current conversation. |
+| `verify-capture-fidelity` | Capture | Judge captured claims against their frozen source before they become notes; runs automatically before every `process-inbox`. |
 | `process-inbox` | Process | Ingest raw inbox notes → atomic concept notes + MOC updates. |
 | `weave-links {scope}` | Interconnect | Discover & record cross-domain links between MOCs. |
 | `visualise-moc {stem}` | Interconnect | Render a Mermaid concept map for one MOC. |
@@ -127,23 +129,21 @@ A numbered folder taxonomy keeps capture, learning, and output cleanly separated
 
 ### The artefacts
 
-- **Concept note** — the atomic unit. A single teachable idea in Feynman structure: Core Idea, Mechanism (+ boundary condition), Application (when to use / when *not* to), and typed edges. Carries `status`, `reviewed`, and `flashcards` flags that gate everything downstream.
+- **Concept note** — the atomic unit. A single teachable idea in Feynman structure: Core Idea, Mechanism (+ boundary condition), Application (when to use / when *not* to), and typed edges. Carries `status` and `flashcards` flags that gate everything downstream, plus a derived `trust` score (from `source_count`) that reflects how corroborated the claim is.
 - **Map of Content (MOC)** — a living map of one domain: concept clusters, typed relationships, and a Cross-Domain Links section connecting it to other MOCs. A single concept can be mapped into several MOCs at once (its `moc:` field is a list), so cross-cutting ideas surface in every domain they touch.
-  - **Flashcards (+ Anki)** — three dense cards per final concept (WHAT / HOW / WHEN), synced to Anki via the flashcards-obsidian plugin for spaced repetition.
+  - **Flashcards (+ Anki)** — short one-idea cards, up to 6 per final concept, synced to Anki via the flashcards-obsidian plugin for spaced repetition.
 - **Solutions** — where knowledge becomes output:
   - **Solution doc** — a realised deliverable built from vault concepts (optionally with a `.pptx`/`.docx`/`.xlsx` companion).
   - **Pattern** — a reusable, abstracted playbook with a tracked use-count.
 
 ### The artefact lifecycle
 
-Every knowledge artefact moves through **one consistent lifecycle** — the same three
+Every knowledge artefact moves through **one consistent lifecycle** — the same two
 flags gate a concept, a MOC, a Pattern, and a Solution alike, so there is only one
 state machine to learn:
 
 ```
-draft  ──(human review pass)──▶  final  ──(generate-flashcards / opt-out)──▶  final + flashcards:true
-  │                                 │
-  └─ reviewed: false ──────────────▶ reviewed: true
+draft  ──(human review pass)──▶  final + flashcards:false  ──(generate-flashcards / opt-out)──▶  final + flashcards:true
 ```
 
 - **`status: draft`** — the resting state for everything the agent writes and most of
@@ -152,11 +152,14 @@ draft  ──(human review pass)──▶  final  ──(generate-flashcards / o
 - **`status: final`** — *you* promote a note to `final` in a single review pass, against
   three criteria: the core idea is statable from memory in one sentence, every wikilink
   resolves, and at least one real application is named. The agent **never** sets `final`
-  on its own, and never edits a `final` note except two whitelisted patches.
-- **`reviewed` / `flashcards`** — `reviewed: true` records your approval; `flashcards`
-  flips to `true` when cards are generated *or* when you deliberately opt a note out of
-  studying ("reviewed, no need to study"). A note is eligible for `generate-flashcards`
-  only when `status: final AND reviewed: true AND flashcards: false`.
+  on its own, and never edits a `final` note except three whitelisted patches (flashcards,
+  the `updated` date bump, and the trust-score patch below).
+- **`flashcards`** — flips to `true` when cards are generated *or* when you deliberately
+  opt a note out of studying ("reviewed, no need to study"). A note is eligible for
+  `generate-flashcards` only when `status: final AND flashcards: false`.
+- **`trust`** — derived from `source_count` (how many sources back the note) by
+  `concept_schema_sync.ps1`, and re-checked for drift by `generate_index.py`. Descriptive,
+  not a gate: it does not block promotion or flashcard generation.
 
 The design principle: **the human is never the bottleneck.** `draft` has no review SLA,
 nothing is ever flagged as "stale," and you promote only the notes you choose — the rest
@@ -218,6 +221,10 @@ The launchers handle pre-flight (index regeneration, validation) and post-flight
 
 # Render the concept map for one MOC
 .\launch-visualise-moc.ps1 MOC_Learning_and_Memory
+
+# Weave cross-domain links between two or more MOCs (needs 2+ MOCs in your vault;
+# the repo ships only MOC_Learning_and_Memory, so substitute your own second domain)
+.\launch-weave-links.ps1 -MocStems MOC_Learning_and_Memory MOC_Your_Other_Domain
 ```
 
 A typical weekly cycle: capture during the week → `process-inbox` → review and mark notes `final` → `generate-flashcards` → periodically `weave-links` and `vault-health` to keep the graph healthy → `pkm-solution` when you need to *use* what you've learned.
@@ -230,32 +237,43 @@ A typical weekly cycle: capture during the week → `process-inbox` → review a
 .
 ├─ CLAUDE.md                       # Command interface + safety rules (place at vault root)
 ├─ generate_index.py              # Builds VAULT_INDEX.json from the vault
-├─ launch-process-inbox.ps1       # Capture → Process launcher
+├─ concept_schema_sync.ps1        # Maintains the source_count/trust score on concept notes
+├─ launch-process-inbox.ps1       # Capture → Process launcher (incl. GATE-KF-13/14 capture-fidelity gates)
+├─ gate_quote_fidelity.py         # GATE-KF-13: verbatim `quote:` fidelity check
+├─ capture_fidelity.py            # GATE-KF-14: manifest for the capture-fidelity judgment gate
+├─ fidelity_ledger.py             # Shared faithful/drifted/fabricated/unverifiable verdict ledger
 ├─ launch-generate-flashcards.ps1 # Retain (flashcards) launcher + Anki sync
-├─ launch-visualise-moc.ps1       # Interconnect (diagram) launcher
+├─ gate_kf05.py                   # GATE-KF-05: flashcard content checks, run before Anki sync
+├─ verify_flashcard_sync.ps1      # Reconciles markdown vs. AnkiConnect (source of truth)
+├─ launch-visualise-moc.ps1       # Interconnect (diagram) launcher — fully deterministic
+├─ build_diagrams.ps1             # Renders the Mermaid SVGs and patches the MOC (no agent involved)
+├─ launch-weave-links.ps1         # Interconnect (weave-links) launcher — builds the candidate manifest
+├─ overlap_candidates.py          # Shared similarity candidate generator (process-inbox + weave-links)
 ├─ extract_diagram_candidates.ps1  # Pre-extracts the per-MOC diagram manifest
 ├─ extract_flashcard_candidates.ps1# Pre-extracts the flashcard candidate manifest
-├─ requirements.txt               # Python dependencies (PyYAML core; per-skill locks for the rest)
+├─ requirements.txt               # Python dependencies (PyYAML/rapidfuzz/numpy core; per-skill locks for the rest)
 ├─ .env.example                   # Environment template (copy to .env)
 ├─ 99_System/
 │  ├─ Readme.md                   # Core PKM philosophy / global rules
 │  ├─ EXTRACT_PROMPT.md           # Capture: post-conversation extraction spec
 │  ├─ EXTRACT_PROMPT_NotebookLM.md# Capture: NotebookLM source-extraction spec
 │  ├─ *_Template.md               # Concept, MOC, Pattern, Solution, Idea, Flashcard templates
-│  ├─ Annex_3_Pattern_Generator.md, Annex_4_Flashcard_Generator.md
+│  ├─ Annex_3_Pattern_Generator.md, Annex_4_Flashcard_Generator.md  (both superseded; kept as pointers)
 │  ├─ acronym_allowlist.md, CANDIDATE_TEMPLATE.md, WEEKLY_REVIEW_CHECKLIST.md
 │  └─ Claude/                     # The five engines + cross-cutting retrieval (Claude Code skills)
-│     ├─ gem-extraction/SKILL.md  # Capture
-│     ├─ pkm-ingestion/SKILL.md   # Process
-│     ├─ pkm-review/SKILL.md      # Interconnect (vault-health)
-│     ├─ vault-graph/SKILL.md     # Interconnect (similarity + graph topology)
-│     ├─ pkm-flashcards/SKILL.md  # Retain (flashcards)
-│     ├─ pkm-solution/SKILL.md    # Produce (solutions)
-│     └─ vault-retrieval/SKILL.md # Retrieve (vault-query: cited hybrid retrieval)
+│     ├─ gem-extraction/SKILL.md      # Capture
+│     ├─ pkm-capture-verify/SKILL.md  # Capture (verify-capture-fidelity)
+│     ├─ pkm-ingestion/SKILL.md       # Process
+│     ├─ pkm-review/SKILL.md          # Interconnect (vault-health)
+│     ├─ vault-graph/SKILL.md         # Interconnect (similarity + graph topology)
+│     ├─ pkm-flashcards/SKILL.md      # Retain (flashcards)
+│     ├─ pkm-solution/SKILL.md        # Produce (solutions)
+│     └─ vault-retrieval/SKILL.md     # Retrieve (vault-query: cited hybrid retrieval)
 ├─ docs/                          # Full phase specifications (read by CLAUDE.md)
 │  ├─ inbox-pipeline.md           # process-inbox: Phases 0–5
 │  ├─ visualisation-pipeline.md   # visualise-moc: Phases V-0 → V-6
-│  └─ interconnect-pipeline.md    # weave-links: Phases IC-0 → IC-6
+│  ├─ interconnect-pipeline.md    # weave-links: Phases IC-0 → IC-6
+│  └─ lifecycle.md                # The status/flashcards/trust state machine, in full
 └─ LICENSE
 ```
 

@@ -11,9 +11,18 @@ config.local.*
 **/FLASHCARD_CANDIDATES.json
 **/DIAGRAM_CANDIDATES_*.json
 **/DIAGRAM_RUN_RESULT.json
+**/DIAGRAM_RENDER_PLAN.json
 **/VAULT_HEALTH_REPORT.md
 **/VAULT_GAPS_REPORT.md
 **/MMDC_MODE.txt
+**/CAPTURE_FIDELITY.json
+**/OVERLAP_CANDIDATES.json
+**/WEAVE_CANDIDATES.json
+**/GATE_KF05_RESULT.json
+
+# Python
+__pycache__/
+*.pyc
 
 # OS
 Thumbs.db

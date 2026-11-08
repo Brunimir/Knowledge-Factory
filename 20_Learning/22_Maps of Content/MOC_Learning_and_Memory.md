@@ -1,7 +1,7 @@
 ---
 title: MOC_Learning_and_Memory
 type: moc
-status: final
+status: draft
 description: How does the brain convert a piece of information it has just encountered into durable knowledge it can retrieve and use months later?
 domain: learning
 created: 2026-04-19

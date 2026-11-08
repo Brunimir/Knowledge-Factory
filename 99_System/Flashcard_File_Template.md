@@ -1,12 +1,14 @@
 ---
-card-deck: 
+title: Flashcards - {humanized MOC}
+type: flashcard-batch
+moc: [{MOC_stem}]
+created: {YYYY-MM-DD}
+tags:
+  - card
 ---
 
-#card
-What is ? :: . **Metaphor:** . **Boundary condition:** .
+# Flashcards - {humanized MOC}
 
-#card
-How does  work? :: . **Key mechanic:** . **Boundary condition:** .
+- {Question naming the Concept, one idea, shaped to that idea} :: {One sentence or fragment from the note. About 9 words, 18 at most. Acronyms as ISS (International Space Station), counted as one word. No bold labels.}
 
-#card
-When and why would you use ? :: **When to use:** . **When NOT to use:** .
+- {Next question naming the Concept} :: {Next idea. Up to 6 cards per concept.}

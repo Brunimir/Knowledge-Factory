@@ -257,7 +257,10 @@ Rules:
                     TYPE 2 (satellite — same mechanism, narrower/domain scope)
                     TYPE 3 (adjacent — related but distinct mechanism)
                     MERGE  (richer instance — new note has better mechanics,
-                            patch existing note instead of creating new one)
+                            patch existing note instead of creating new one —
+                            UNLESS the existing note is status:final, in which
+                            case the MERGE is downgraded to TYPE 3; see OVERLAP
+                            RESOLUTION and Safety Rule #6)
                   → STOP and wait for human confirmation before resolving
 
   Split         — Note conflates two distinct mechanisms (different
@@ -267,25 +270,201 @@ Rules:
 Auto-fix: Safe chars, Feynman fail, No boundary, No when-not, Domain (inheritance paths a/b)
 STOP for: Overlap, Split, Unflagged acronym, Domain (orphan moc:[] or invalid MOC domain)
 
-OVERLAP DETECTION RULES
-Check every new note title against VALID_NOTES for:
-  1. Exact title match → TYPE 1 (true duplicate)
-  2. Spelling variant (same words, different capitalisation or spelling)
-     → TYPE 1, treat as duplicate
-  3. Same mechanism described in a narrower domain context
-     → TYPE 2 (satellite), propose rename: {Concept} in {Domain}
-  4. Same phenomenon, richer or different mechanics from different source
-     → MERGE, patch existing note with new mechanics, discard new title
-  5. Related vocabulary, genuinely different boundary condition
-     → TYPE 3, keep both, add Supports/Contradicts link
+OVERLAP DETECTION RULES  (rewritten 2026-08-12 —
+[[Concept Corroboration and the Overlap Audit Gate - Decision]], memo IMP-44)
 
-Also check within the batch itself — if the same concept appears
-twice in the same batch (from the same or different sources),
-detect it before writing either instance.
+THE AUDIT IS CORROBORATION-FIRST, NOT DEDUP-FIRST. Measured across all 864
+concepts on 2026-08-12: 78 notes have no source, 770 have exactly one, and
+14 (1.6%) have two or more. Duplicates are not this vault's problem; ABSENT
+CORROBORATION is. So the audit is tuned to minimise FALSE NEGATIVES — missing
+a chance to strengthen an existing concept — not false positives.
+
+  DO NOT hand-roll this search. Candidates are pre-computed by
+  `overlap_candidates.py` into 00_Inbox/OVERLAP_CANDIDATES.json before the run
+  starts. Read the manifest; do not scan the vault, and do not substitute your
+  own judgement of "which MOCs look relevant". That substitution is exactly
+  what failed on 2026-08-12 (gap ENV-30), and GATE-KF-11 now blocks a run that
+  cannot show the manifest was honoured.
+
+CANDIDATE GENERATION (done for you; stated so you can read the manifest)
+  Adaptive expansion over the hybrid retrieval layer: the two nearest existing
+  CONCEPT notes, extended by two more while the lowest still scores >= 0.70
+  dense cosine. 0.70 is MEASURED, not chosen — it separates 762 pairs the
+  curator chose to link (median 0.771) from 2286 random pairs (median 0.600);
+  best-F1 0.71, recall 0.870, FPR 0.052. Re-derive with
+  `python overlap_candidates.py calibrate`.
+
+METAPHOR CRITERIA — invention is ENCOURAGED, misattribution is the defect
+  (added 2026-08-15 after the capture fidelity audit)
+
+  A metaphor the note invents in order to teach is legitimate and welcome. Safety
+  Rule 7 forbids inventing FACTS, not inventing ILLUSTRATIONS, and the audit
+  found the distinction matters: of 8 metaphors invented for the Minto notes, 7
+  were good teaching devices and only 1 was a defect. `MECE_Framework`'s
+  "perfectly completed puzzle" is exemplary — a unique spot for every piece maps
+  to mutually exclusive, no holes in the picture maps to collectively exhaustive.
+  Nothing in the source; nothing wrong with it.
+
+  An invented metaphor is legitimate when ALL FOUR hold:
+
+    1. NOT DRESSED AS THE SOURCE'S WORDS. Never inside quotation marks, never
+       attributed to the author. This is the line the audit actually found:
+       `Self-Criticism_(Silence_the_Watcher)` sets "withdraw its watchers from
+       the gates" in quotation marks as if Minto wrote it — it is Schiller, via
+       Freud. Real words, wrong mouth.
+    2. STRUCTURALLY FAITHFUL. Every element maps to something real in the
+       concept, and the metaphor implies no property the concept lacks.
+    3. CARRIES NO NEW FACTS. It illustrates a claim the note has already
+       established FROM THE SOURCE. It must not introduce a mechanism, a number,
+       a boundary condition or a cause. "Blockchain can mitigate collapse" fails
+       here — that is a fabricated factual claim wearing a metaphor's clothes.
+    4. LICENSES ONLY CORRECT INFERENCES. If a reader reasons FROM the metaphor,
+       the conclusions must be ones the source supports.
+
+  ADDING A TEACHING AID AT REVIEW (added 2026-08-15; wired to an agent
+  2026-08-26 — see 99_System\Claude\pkm-capture-verify\SKILL.md, which now
+  runs this step automatically before process-inbox starts). The review step
+  (GATE-KF-14) MAY add a metaphor or an example the capture lacks, and this is
+  the right place to do it rather than a concession. Generation is the wrong
+  moment: template slot pressure — a field demanding to be filled mid-extraction
+  — is the diagnosed cause of 8 fabricated Minto metaphors. At review there is no
+  slot to fill; the reviewer has read both sides and is authoring deliberately.
+  A capture returning `[NONE]` is the instruction working, not a defect, and this
+  step is where that abstention gets turned into something useful.
+
+  Worth doing: only 20.4% of concepts carry a metaphor, and the flashcard
+  extractor reads the field (its own rule is "do NOT invent one"), so roughly
+  four out of five cards ship with no visualisation aid.
+
+    METAPHOR — an ANALOGY, asserting nothing about the domain. "MECE is like a
+      completed puzzle" adds no fact to MECE. Invent freely under the four
+      criteria above; criterion 1 is the only hard one — never the author's words.
+
+    EXAMPLE — a CONCRETE INSTANCE, which DOES assert something about the world,
+      and therefore carries real risk. Minto's fabricated "warehouse at 100%
+      capacity needing 20% more stock" was an invented example wearing the
+      author's voice. Prefer one FROM the source. If you invent, mark it INLINE:
+
+          **Example:** *(illustrative)* ...
+
+      Inline, never a renamed field: `gate_concept_body`, `concept_quality` and
+      the flashcard extractor all match the literal `**Example:**`, so a new
+      label would be silently unread by all three.
+
+  Adding either NEVER changes the fidelity verdict — the verdict asks whether the
+  note misrepresents its source, and an editorial metaphor does not, by
+  construction.
+
+  ENFORCEMENT IS PARTIAL, AND KNOWING WHICH PART MATTERS. Criterion 1 is gated
+  ONLY on the extract's structured `quote:` field (GATE-KF-13). It is NOT
+  machine-checkable in note prose: in this vault a double quote overwhelmingly
+  marks a scare quote or a coined term ("whisper", "Watermelon", "engine room"),
+  not a citation. A first build of that gate checked prose and reported 168
+  failures across 195 notes — 86%, essentially all false, because a naive matcher
+  pairs one quote mark with the next across intervening text. Criteria 2–4 and
+  criterion 1 in prose stay REVIEW-TIME judgements, recorded in
+  00_Inbox/FIDELITY_LEDGER.json.
+
+  PRIOR VERDICTS — judge once. A candidate carrying a non-null `prior_outcome`
+  has already been adjudicated in 00_Inbox/OVERLAP_LEDGER.json. Do NOT re-judge
+  it: copy the prior verdict into `outcome` and move on. Re-asking a settled
+  question wastes the run and lets the answer drift between runs. The generator
+  never pre-fills `outcome` itself — a prior verdict is evidence you carry
+  forward deliberately, not a judgement the script made for you. Only a pair
+  with `prior_outcome: null` is a fresh question.
+
+  The lexical tripwire (`token_sort_ratio >= 80`, Jaccard >= 0.5) rides along
+  on each candidate as a SEPARATE high-confidence flag. It is not the primary
+  instrument: on 2026-08-12 it produced 1 candidate from 26,624 pairs and
+  missed the batch's strongest match (cos 0.814).
+
+ADJUDICATION — you must classify EVERY candidate into exactly one outcome:
+
+  corroborates  The existing note already covers this concept and this source
+                AGREES with it. → append the source (see below). Do NOT write
+                a new note.
+  contradicts   Same topic, opposing claim. → NO append. Write the new note
+                and record a Contradicts edge.
+  instance-of   The new concept is a specific case of the existing one (or the
+                reverse). → write the new note, record the Instance-of edge.
+  distinct      Genuinely different mechanism. → write the new note; add a
+                typed edge only if the text supports one.
+
+THE VERDICT IS NOT THE EDGE (added 2026-08-14). Adjudication answers "is this
+the SAME concept?" It does not answer "is this concept RELATED to that one?" —
+and a `distinct` verdict is where the second question STARTS, not where it ends.
+Run both over every candidate:
+
+  Q1 duplication  → exactly one of the four outcomes above.
+  Q2 relationship → does a typed edge from the closed 7-label vocabulary hold
+                    between the new note and the existing one? If yes, record it
+                    in Phase 4 (MOC UPDATE RULES rule 4).
+
+  `distinct` + a real edge is the NORMAL result for a batch opening a new area.
+  `distinct` + no edge asserts the two concepts have nothing to say to each
+  other — true sometimes, but it is a claim, and skipping Q2 silently disguises
+  itself as that claim.
+
+Q2 IS OWNED BY THIS PIPELINE, not weave-links: every candidate pair here has one
+endpoint created in this run (see DISCOVERY OWNERSHIP below). Deferring these
+edges to weave-links LOSES them — weave-links considers only pairs where BOTH
+endpoints predate the run, so a new-note edge handed to it falls outside its
+scope and is never picked up by anything.
+
+THE MANIFEST IS A FLOOR FOR Q2, NOT A CEILING. GATE-KF-11 requires the manifest
+be honoured for Q1, and that stands unchanged. But `candidates_for()` ranks by
+topical proximity, while a cross-domain edge joins concepts sharing a MECHANISM
+across different vocabularies — precisely the case dense cosine scores LOW.
+Measured 2026-08-14: AI-Assisted_Governance_Guardrails fell BELOW the 0.70 floor
+and was that run's strongest cross-domain match. So for Q2 you MAY consider notes
+outside the manifest; if you do, name each one and the reason in the Phase 5
+report, so the extension stays auditable instead of becoming the freelancing
+GATE-KF-11 exists to stop.
+
+  NO SIMILARITY SCORE MAY DECIDE THIS. Cosine measures topical proximity and
+  antonyms are maximally topically proximate — in this vault
+  Private_Cloud_Model <-> Public_Cloud_Model scores 0.888 and is a
+  *Contradicts*; 215 pairs (28% of all linked pairs) score >= 0.80 and every
+  one was deliberately kept separate. Thresholds gate ATTENTION; you, having
+  read both bodies, gate the verdict. Read the existing note before judging.
+
+WITHIN-BATCH CHECK still applies: if the same concept appears twice in one
+batch, detect it before writing either instance.
+
+DISCOVERY OWNERSHIP — PARTITIONED BY SUBJECT (2026-08-12, memo IMP-46)
+
+  `process-inbox` may generate an edge ONLY where one endpoint is a note
+  created in THIS RUN. `weave-links` owns every pair where both endpoints
+  predate the run.
+
+The test is a boolean — *was this stem written in this run?* — so it is checked
+mechanically rather than trusted. Both pipelines call the SAME candidate
+generator, `overlap_candidates.py` (`candidates_for()`), floored at dense
+cosine 0.70; two implementations of one search WILL drift. If a candidate pair
+has NO endpoint from this run, do not record an edge for it — note it for
+`weave-links` instead. Mirrored verbatim in
+`40_Solutions/44_Documentation/interconnect-pipeline.md`.
+
+SATELLITE (formerly TYPE 2) survives as a sub-case of `instance-of`: same
+mechanism in a narrower domain → rename `{Concept} in {Domain}`, Related to
+the parent, filed in the domain MOC.
 
 ════════════════════════════════════════════════════════════════
 PHASE 3 — BUILD ALL NOTES (one pass, validate before each write)
 ════════════════════════════════════════════════════════════════
+
+MARKUP STRIPPING (do this while building each note body)
+  Strip extraction-markup tokens so they never reach the note body — if
+  they persist, Review 6's gap scanner sees them as bogus "acronyms" and
+  the only way to silence them is to wrongly allowlist them (which mutes
+  real gaps). Remove, from the prose that lands in the note:
+    - confidence brackets: [HIGH] / [MEDIUM] / [LOW] / [NONE] and any
+      "confidence: [HIGH|MEDIUM]" scaffolding from the extraction prompt
+    - bare placeholder tokens like [NONE], [NOT FOUND], [ALL]
+  These are prompt scaffolding, not content. The labelled blocks the
+  flashcard/diagram extractors DO consume (**Metaphor:**, **Boundary
+  condition:**, the 7-label edge lines) are kept — only the confidence /
+  placeholder shrapnel is stripped.
 
 SAFE CHAR RULES — two separate sets: TITLE and STEM
 
@@ -383,17 +562,61 @@ WIKILINK RULE
     (not yet in vault: "Title")
   Never write a broken [[wikilink]].
 
-OVERLAP RESOLUTION (applied after human confirmation for flagged notes)
-  TYPE 1 / spelling variant → skip entirely. Log as SKIPPED.
-  TYPE 2 / satellite → rename to "{Concept} in {Domain}". Write with
-    Related: [[parent concept note]] in Links.
-    Assign to the domain MOC, not the parent concept's MOC.
-  TYPE 3 / adjacent → write both. Add Supports or Contradicts link
-    between them. Assign to the same MOC cluster.
-  MERGE → do NOT write a new file. Patch the existing note:
-    Insert the new mechanics into the existing Mechanism section.
-    Add the new source to the Source field if different.
-    Log as MERGED in report.
+OVERLAP RESOLUTION — THE WRITE PATHS  (rewritten 2026-08-12, memo IMP-44)
+
+  contradicts / instance-of / distinct → write the new note as normal, with
+    the typed edge the adjudication produced. Nothing on the existing note
+    changes. For `instance-of` the edge goes in the NEW note's Links block
+    (it is yours to write); the MOC aggregation picks it up in Phase 4.
+
+  corroborates → TWO SEPARATE WRITES with different rules. Never conflate them.
+
+  (1) THE SOURCE APPEND — automatic, mechanical, no human validation.
+      Append the source to the existing note's `- Source` line:
+          - Source [[Existing_Source]], [[New_Source]]
+      THIS EXACT SHAPE MATTERS. `concept_schema_sync.ps1:88` derives
+      `source_count` by counting [[wikilinks]] on the `- Source` line. A source
+      recorded anywhere else — an HTML comment, a new field, prose — is
+      INVISIBLE to the trust engine and will be silently erased on the next
+      `-Apply`. (This is exactly what happened to Database_Normalisation_Process
+      on 2026-08-12: source_count: 2 with one link on its Source line.)
+
+      NEVER hand-write `source_count:` or `trust:`. Run
+      `concept_schema_sync.ps1 -Apply`; it owns both fields and the indexer
+      re-derives trust independently so drift stays visible.
+
+      PERMITTED ON status:final NOTES. This is the second narrow amendment to
+      SAFETY RULE #6, following the pattern set by
+      [[Concept Trustworthiness Score - Decision]]: a declared mutation with a
+      named owner. The Source line and the two synced fields — nothing else.
+
+      GATED ON YOUR AGREEMENT JUDGEMENT. Only a `corroborates` verdict reaches
+      this path. An append driven by similarity alone would eventually raise a
+      concept's trust for having been REFUTED.
+
+  (2) THE BODY ENRICHMENT — human-approved, agent-drafted, never automatic.
+      If the new extraction adds real mechanics the existing note lacks, draft
+      the patch and PRESENT IT FOR APPROVAL as ORIGINAL ↔ UPDATED. Show:
+        - the exact lines before and after,
+        - the note's `status`,
+        - the note's `flashcards` state.
+      The flashcard state is REQUIRED in the prompt. 310 of 311 final notes are
+      `flashcards: true` (terminal); their cards were generated from the current
+      body, live in MOC-keyed batch files, and are linked to Anki by
+      `^<13-digit>` block refs with NO back-pointer from concept to card. So an
+      enrichment silently stales cards and no detector exists. The human decides
+      at the moment of approval whether to act on that — do NOT reset
+      `flashcards: true → false` to force regeneration: that trades a visible
+      staleness problem for an invisible duplicate-cards one and walks into the
+      AnkiConnect silent-fail trap the batch-per-file design exists to prevent.
+
+      Write ONLY on explicit approval. On refusal, the source append from (1)
+      still stands — corroboration and enrichment are independent.
+
+  Log every append and every enrichment in the Phase 5 report, and write the
+  outcome back into OVERLAP_CANDIDATES.json (`outcome`, and `appended_source`
+  for corroborations). GATE-KF-11 verifies the append actually landed on disk;
+  a recorded corroboration with no matching Source-line change FAILS the run.
 
 SATELLITE NAMING RULE
   {safe_title(original concept)} in {Domain}
@@ -420,9 +643,24 @@ RENAME PROTOCOL (applies whenever safe_stem changes a note's filename)
   Never proceed to the next note until propagation is complete.
 
 validate_note() — hard gate before every file write
-  ✓ Frontmatter parses as valid YAML — run yaml.safe_load on the
-    block between --- delimiters before any other check.
-    If this fails → fix inline, re-validate once, then QUARANTINE.
+  ✓ Frontmatter parses — ACTUALLY PARSE IT, do not eyeball this line.
+    Write the candidate note to a temp file and run it through the
+    indexer's own parser (the same function that builds VAULT_INDEX.json,
+    so "passes" ≡ "will index"). A note missing its opening --- is
+    SILENTLY DROPPED by the indexer (parse_frontmatter returns None) —
+    it never enters the index, flashcards, MOCs, or health checks, with
+    no error. This check converts that silent loss into a hard stop:
+
+      $tmp = Join-Path $env:TEMP "pkm_fm_check.md"
+      Set-Content -Path $tmp -Value $noteContent -Encoding UTF8
+      python -c "import sys; sys.path.insert(0, r'$env:VAULT_ROOT'); from generate_index import parse_frontmatter; c=open(sys.argv[1], encoding='utf-8').read(); f,e=parse_frontmatter(c); assert f, (e[0] if e else 'no frontmatter — note would be SILENTLY DROPPED (missing opening --- ?)'); print('FM_OK')" $tmp
+
+    Run this before any other check. Must print FM_OK.
+    If it fails → fix inline, re-run once, then QUARANTINE. The usual
+    culprits: missing opening ---, a value wrapped onto the next line
+    (e.g. `problem:` ↵ text — makes the key null), or an unquoted
+    interior ": " (see the description single-quoting rule below — the
+    same hazard applies to any prose value).
   ✓ description: field uses single-quoted YAML string if it contains
     any of: "  :  [[  **
     Format:  description: 'value with "quotes" or colons: here'
@@ -434,12 +672,11 @@ validate_note() — hard gate before every file write
     updated, moc, reviewed, flashcards fields all present and non-empty
   ✓ domain is one of: learning | writing | presentations |
     biology | strategy | multiple | enterprise-architecture | ai-systems |
-    data-engineering
+    data-engineering | cybersecurity | economics | career
   ✓ source_type is one of: book | course | article |
     notebooklm | shower-thought
   ✓ status is one of: draft | final
-  ✓ moc: is a YAML list — a concept may belong to several MOCs,
-    e.g. [MOC_Learning_and_Memory, MOC_Productivity]
+  ✓ moc: is a YAML list — e.g. [MOC_Learning_and_Memory]
   ✓ reviewed and flashcards are boolean (true or false, not string)
   ✓ Links block has the 4 REQUIRED lines in this order:
       - Related: ...
@@ -478,7 +715,7 @@ type: concept
 status: draft
 description: {1-sentence plain-language summary — agent-readable, no jargon.
               Single-quoted if it contains " : [[ or **}
-domain: {learning | writing | presentations | biology | strategy | multiple | enterprise-architecture | ai-systems | data-engineering}
+domain: {learning | writing | presentations | biology | strategy | multiple | enterprise-architecture | ai-systems | data-engineering | cybersecurity | economics | career}
 source_type: {book | course | article | notebooklm | shower-thought}
 created: {YYYY-MM-DD}
 updated: {YYYY-MM-DD}
@@ -538,6 +775,21 @@ MOC FIT ASSESSMENT
   you need to read the ## Core Question section. In that case use
   Read with limit:40 to avoid loading the SVG and cluster lists.
 
+MULTI-MOC ASSIGNMENT (a note is NOT limited to one MOC)
+  The moc: field is a YAML list by design: a concept may belong to EVERY
+  MOC whose Core Question its mechanism genuinely answers — not just one.
+  Assign a note to multiple MOCs only when it independently passes the MOC
+  FIT test above for each (a real mechanism fit, never shared vocabulary).
+  When a note is multi-homed:
+    - Insert it into the appropriate cluster in EACH of its MOCs. Phase 4
+      patches every MOC the note joins, and each MOC's note_count includes it.
+    - Its domain follows the DOMAIN ASSIGNMENT RULE (Phase 2/3): `multiple`
+      if the MOCs' domain values differ, the shared value if they agree.
+  Do NOT multi-home a note to manufacture a connection. If the note truly
+  lives in one MOC but merely relates to a concept in another, that link is a
+  Cross-Domain Link — recorded by weave-links in the MOC's ## Cross-Domain
+  Links section — NOT a second moc: entry.
+
 CLUSTER ASSIGNMENT RULE
   A note belongs to a cluster if its mechanism answers the same
   sub-question the cluster addresses — not because it shares
@@ -549,6 +801,35 @@ CLUSTER ASSIGNMENT RULE
   If the mechanism does not fit the MOC's core question at all
   → flag as SATELLITE or MOC CANDIDATE (see below).
 
+CLUSTER HEALTH GUARDS (run at insertion — keep clusters learnable)
+  These keep cluster-making good AS notes arrive, instead of letting clusters
+  drift until a later cluster_health.ps1 rescue.
+
+  1. REAL CLUSTERS, NOT THE SUGGESTION. The block's "Suggested cluster" was
+     written without sight of the MOC's actual current clusters. Before placing,
+     consider the MOC's current `### {cluster}` headings (Read with limit:60 if
+     not already in memory) and place against THOSE. Only use the suggestion if
+     it matches a real cluster.
+
+  2. SIZE GUARD. A cluster should hold ~3-9 concepts (≤9 so the diagram never
+     drops the overflow at render; ≥2 so it is not a trivial singleton). If an
+     insertion would push a cluster past 9, do NOT silently overfill — still
+     insert (the note must not be lost), but flag that cluster in the Phase 5
+     report as "oversized - split candidate" with a suggested 2-way split theme.
+     If a note would create a lone singleton cluster, prefer an existing sibling
+     unless it is a genuinely new sub-theme.
+
+  3. COHESION CHECK. A note belongs where its TYPED EDGES land. If the note's
+     Supports / Prerequisite-for / Contains / Mechanism-of / Instance-of targets
+     sit mostly in a DIFFERENT existing cluster than the one chosen, place it
+     with its edges (or flag the mismatch). Edges are a stronger cohesion signal
+     than shared label vocabulary.
+
+  The weekly `vault-health` Review 7 (cluster_health.ps1) is the backstop for
+  drift these guards miss; `recluster.ps1` drafts splits/merges/moves and
+  `connect_clusters.ps1` drafts the structural edges — both write review
+  worksheets to 00_Inbox/ and never edit a MOC themselves.
+
 MOC UPDATE RULES
   1. Insert new note into the correct cluster with format:
        [[Note_Stem]] — one sentence on how it answers the core question
@@ -558,8 +839,16 @@ MOC UPDATE RULES
      answers an open question, update that question entry:
        Before: "No note on X — gap"
        After:  "[[Note_Stem]] now covers X. Remaining gap: Y"
-  4. Add cross-domain links if new notes explicitly connect to
-     concepts in other MOCs (e.g. via Contradicts or Supports links).
+  4. Record every cross-domain edge found by the Phase 2 relationship pass
+     (Q2) in the MOC's ## Cross-Domain Links section, canonical prose-verb
+     format, closed 7-label vocabulary:
+       [[A]] <label> [[B]] (in [[MOC_of_the_foreign_note]])
+     The "(in [[MOC]])" annotates the FOREIGN note — the one that predates
+     this run. Add a short clause after the edge naming its basis, so a
+     reviewer can judge it without reopening both notes.
+     SAFETY RULE #6: the edge lands in the MOC and NOWHERE ELSE. Never patch
+     the foreign concept note to add a back-edge; most cross-domain targets
+     are status:final. The MOC section is the complete record of the edge.
   5. Patch only — never rewrite the full MOC file.
      If insertion point is ambiguous, flag for human — do not guess.
 
@@ -584,30 +873,31 @@ KEY TENSIONS AND OPEN QUESTIONS
   Open Questions: update automatically when a new note answers one.
   Do not ask for confirmation on Open Question updates.
 
-CLUSTER MAP GENERATION — moved to visualise-moc
-  Phase 4 NO LONGER generates the ## Cluster Map section. That work is
-  now owned by the separate `visualise-moc {MOC_stem}` command, which
-  renders a two-tier Mermaid diagram (overview + cluster detail) and
-  patches the MOC's `### Cluster Map` subsection with transclusions
-  pointing to the rendered diagram file.
+DIAGRAM GENERATION — owned by visualise-moc (deterministic)
+  Phase 4 does NOT generate or touch any diagram region of the MOC. The
+  separate `visualise-moc {MOC_stem}` command — fully deterministic, run via
+  launch-visualise-moc.ps1 → build_diagrams.ps1 — renders the diagrams and
+  injects them into the MOC as DISTRIBUTED DIRECT IMAGE EMBEDS: an overview
+  `![](…overview.svg)` before the first cluster heading, and one
+  `![](…cluster_N.svg)` under each cluster heading. There is **NO
+  `### Cluster Map` subsection and NO `![[Diagram#…]]` transclusion** — that
+  was the pre-2026-05-26 legacy shape; building it by hand and then running
+  the generator produces duplicate diagrams.
 
-  See docs/visualisation-pipeline.md for the full spec.
+  See docs/visualisation-pipeline.md (V-5.2) — the single source for MOC
+  diagram layout.
 
-  Phase 4 still does NOT touch the `### Cluster Map` subsection at all.
-  The user (or the visualise-moc command) is responsible for
-  regenerating diagrams when clusters change. The note_count and
-  last_cluster_review frontmatter fields are still updated by Phase 4
-  itself (note_count from this batch's additions; last_cluster_review
-  is left to visualise-moc to update).
+  Phase 4 still does NOT touch the diagram embeds at all. note_count is
+  updated by Phase 4 (from this batch's additions); last_cluster_review is
+  updated by build_diagrams.ps1 when it patches the MOC (see V-5.3).
 
   CANONICAL MOC SECTION ORDER:
     ## Core Question
     ## Concept Landscape
-      ### Cluster Map        ← h3, FIRST child of Concept Landscape
-        (auto-generated notice line)
-        ![[Diagram_{moc_stem}#Overview]]         ← transclusion
-        ![[Diagram_{moc_stem}#Cluster Detail]]   ← transclusion
-      ### Cluster 1          ← concept clusters follow after the transclusions
+      (generator injects the overview ![](…overview.svg) here, before the
+       first cluster heading — do NOT author it by hand)
+      ### Cluster 1          ← concept clusters; generator injects one
+        ![](…cluster_1.svg)     cluster image under each cluster heading
       ### Cluster 2 ...
     ## Key Tensions
     ## Open Questions
@@ -616,17 +906,27 @@ CLUSTER MAP GENERATION — moved to visualise-moc
     ## Concept Relationships ← h2, at the very END of the file
       ### Supports
       ### Contradicts
-      ### Prerequisite-for     (optional — omitted if empty)
-      ### Mechanism-of         (optional)
-      ### Instance-of          (optional)
-      ### Mitigates            (optional)
-      ### Related-to           (optional)
+      ### Prerequisite-for     (optional epistemic — omitted if empty)
+      ### Mechanism-of         (optional epistemic)
+      ### Instance-of          (optional epistemic)
+      ### Mitigates            (optional epistemic)
+      ### Related-to           (optional epistemic)
+      ### Contains             (optional STRUCTURAL — curator-authored)
+      ### Flows-into           (optional STRUCTURAL — curator-authored)
+      ### Inherits-to          (optional STRUCTURAL — curator-authored)
+      ### Peers-with           (optional STRUCTURAL — curator-authored)
+      ### Protects             (optional STRUCTURAL — curator-authored)
 
-  Cluster-palette hex values (the 6 colors) and the closed edge
+  The 7 epistemic subsections are auto-populated by Phase 4 (below). The 5
+  structural subsections are OPTIONAL, omit-if-empty, and authored by the
+  curator (not derived from the locked concept-note Links blocks) — they are
+  parsed by extract_diagram_candidates.ps1. See the 12-label edge table
+  (7 epistemic + 5 structural) in docs/visualisation-pipeline.md.
+
+  Cluster-palette hex values (the 6 colors) and the closed epistemic edge
   vocabulary (the 7 labels) are documented in
-  docs/visualisation-pipeline.md and reused verbatim by the Mermaid
-  classDef block so the visual brand survives the migration from the
-  legacy raw-SVG cluster map.
+  docs/visualisation-pipeline.md and reused verbatim by the generator so the
+  visual brand survives the migration from the legacy raw-SVG cluster map.
 
 CONCEPT RELATIONSHIPS AGGREGATION
   During Phase 3 Build, the agent already has every new note's typed
@@ -636,6 +936,17 @@ CONCEPT RELATIONSHIPS AGGREGATION
 
   1. Collect all typed-edge links from the new notes being added to
      this MOC, across the 7 closed-vocab labels.
+     DIRECTION — never guess. The source block's ## Typed edges field
+     is written subject-first: the concept whose block it is, is
+     ALWAYS the subject. So a line "supports X" inside block Foo
+     becomes [[Foo]] supports [[X]] — never the reverse. Likewise the
+     concept note's Links block: "Supports: [[X]]" on note Foo means
+     [[Foo]] supports [[X]]. Only contradicts and related-to are
+     symmetric; the other five have no inverse in the vocabulary, so
+     an edge that reads backwards must be emitted from the OTHER
+     note's block, not flipped here. If the subject is ambiguous,
+     omit the edge and flag it — a wrong arrow renders as a wrong
+     claim in the diagram.
   2. Append at the END of the MOC file, after ## Cross-Domain Links,
      under a ## Concept Relationships header. Emit ONE subsection per
      edge type that has at least one edge, in this order (omit empty
@@ -677,7 +988,7 @@ PHASE 5 — REPORT (exceptions and required actions only)
 ════════════════════════════════════════════════════════════════
 ## Run summary
 Processed: N | Written: N | Merged: N | Skipped (duplicate): N
-Quarantined: N | Fragments: N | MOCs patched: N
+Quarantined: N | Fragments: N | MOCs patched: N | Cross-domain edges: N
 
 ─── ACTION REQUIRED ──────────────────────────────────────────
 
@@ -703,6 +1014,13 @@ Quarantined: N | Fragments: N | MOCs patched: N
 
 ## Merged into existing notes
 | New title (discarded) | Patched into | What was added |
+
+## Cross-domain edges recorded
+| New note | Label | Existing note (its MOC) | Basis | In manifest? |
+(The Q2 relationship pass. "In manifest?" = no means you went beyond
+OVERLAP_CANDIDATES.json to find it — state why. An EMPTY table on a batch that
+opened a new subject area is a signal Q2 was skipped, not a signal there was
+nothing to link.)
 
 ## Open Questions updated
 | MOC | Question | Status |

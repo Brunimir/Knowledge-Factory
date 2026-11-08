@@ -108,6 +108,38 @@ The similarity thresholds are defined here, once, and reused by both dedup
 paths so they agree:
 - **Title fuzzy match:** `rapidfuzz.fuzz.token_sort_ratio ≥ 80`
 - **Content MinHash:** Jaccard `≥ 0.5` (128 permutations)
+- **Dense cosine floor:** `≥ 0.70` (bge-micro-v2, via `overlap_candidates.py`)
+
+### The dense floor is MEASURED, not chosen (added 2026-08-12)
+Calibrated against the vault's own link graph by
+`python overlap_candidates.py calibrate` — POSITIVE = concept pairs joined by a
+typed edge (pairs the curator chose to **link**, i.e. explicitly decided were
+*not* the same concept); NEGATIVE = random concept pairs:
+
+```
+POSITIVE 762   NEGATIVE 2286
+linked median 0.771   random median 0.600   separation +0.171
+best-F1 floor 0.71   recall 0.870  FPR 0.052  precision 0.848
+90%-recall floor 0.702
+```
+
+Re-derive it as the corpus grows; 0.70 came from a 631-document index.
+
+### No cosine may ever mean "merge"
+This calibration measures **relatedness, not identity**, and no higher bar fixes
+that. The top of the scale is where contradictions live:
+
+```
+0.936  Anycast-Enhanced_Name_Resolution ↔ Domain_Name_System_(DNS)      Related
+0.892  Attended_AI_Authentication       ↔ Unattended_AI_Authentication  Related
+0.888  Private_Cloud_Model              ↔ Public_Cloud_Model            Contradicts
+```
+
+Cosine measures topical proximity and antonyms are maximally topically
+proximate. Further, **215 pairs (28% of all linked pairs) score ≥ 0.80** and
+every one was deliberately kept separate by the curator; at 0.78 it is 322.
+Thresholds gate **attention**; a reader of both bodies gates the verdict. See
+[[Concept Corroboration and the Overlap Audit Gate - Decision]].
 
 `process-inbox` Phase 2 OVERLAP DETECTION (see `docs/inbox-pipeline.md`) uses
 the SAME fuzz ≥ 80 tripwire to flag spelling-variant / near-duplicate titles

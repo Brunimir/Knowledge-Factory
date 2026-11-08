@@ -14,8 +14,9 @@ updated: 2026-04-28
 moc:
   - MOC_Learning_and_Memory
   - MOC_Biology_of_Performance
-reviewed: true
 flashcards: true
+source_count: 1
+trust: 1.2
 tags:
 ---
 ## Core Idea (Summary)

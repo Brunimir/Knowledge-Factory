@@ -139,7 +139,7 @@ Output format:
 ```
 ## MOC candidates
 | Cluster | Notes | Suggested title |
-| Personal Positioning | Prime Real Estate, Dialect Mirroring, The Presentation Halo Effect, AMR Framework | MOC_Personal_Positioning |
+| {Cluster theme} | Concept_A, Concept_B, Concept_C | MOC_{Suggested_Title} |
 ```
 
 ---

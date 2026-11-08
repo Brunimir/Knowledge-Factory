@@ -4,9 +4,9 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 """
 retrieval.py — hybrid (dense + sparse + RRF) retrieval over the vault Markdown.
 
-The read path for the `vault-query` command. The Markdown is the single source
-of truth; this builds a DISPOSABLE, REBUILDABLE shadow index (gitignored under
-.embeddings/) and never writes a vault note.
+Phase 2 of the "Adopt Hybrid Retrieval Layer" Decision. The Markdown is the
+single source of truth; this builds a DISPOSABLE, REBUILDABLE shadow index
+(gitignored under .embeddings/) and never writes a vault note.
 
   CHUNK  : notes are split into overlapping, paragraph-aware chunks (~300 words,
            ~15% overlap) so long notes are embedded in full, not truncated at the
@@ -22,7 +22,7 @@ of truth; this builds a DISPOSABLE, REBUILDABLE shadow index (gitignored under
            rankings (and over every multi-query expansion phrasing, see expand=).
            Cross-encoder reranking is intentionally NOT a separate model: the
            vault-query agent reads the top notes during synthesis, which is the
-           rerank step (keeps the dependency tree lean).
+           rerank step (keeps the dependency tree lean, per the integrity Decision).
 
 Incremental like generate_index.py: each note is keyed by whole-file SHA-256, so
 `build` only re-embeds changed notes. Graceful degradation: if onnxruntime /
@@ -34,8 +34,8 @@ CLI:
   python retrieval.py query "question"   # ranked, cited results (JSON or text)
   python retrieval.py status             # index health
 
-The cited-answer behaviour and multi-query expansion are layered on top by the
-`vault-query` skill (see SKILL.md), which calls search().
+The cited-answer command (IMP-5) and multi-query expansion (IMP-6) are layered
+on top by the `vault-query` skill (see SKILL.md), which calls search().
 """
 
 import os
@@ -354,7 +354,7 @@ def _rrf(rankings: list, n: int) -> np.ndarray:
 
 def search(query: str, top_k: int = 8, expansions: list = None,
            index: dict = None) -> dict:
-    """Hybrid CHUNK-level search aggregated to notes. `expansions`: extra
+    """Hybrid CHUNK-level search aggregated to notes. `expansions` (IMP-6): extra
     query phrasings, each fused via RRF. Dense + BM25 score every chunk; RRF fuses
     them; each note takes its best chunk (score + snippet). Returns
     {results:[{stem,path,title,snippet,dense_cos,bm25,rrf}], dense, max_cos,
@@ -418,7 +418,7 @@ def search(query: str, top_k: int = 8, expansions: list = None,
 
     max_cos = float(note_cos.max()) if dense_on and n_notes else 0.0
     max_bm25 = float(note_bm25.max()) if n_notes else 0.0
-    # Low confidence => the cited-answer command should admit a gap.
+    # Low confidence => the cited-answer command should admit a gap (IMP-5).
     # Semantic similarity is the authority: a strong in-vault match scores cos
     # ~0.70+, while unrelated questions top out ~0.50, so 0.60 cleanly separates.
     # A spurious BM25 keyword hit must NOT override semantic irrelevance. BM25 is
@@ -472,7 +472,7 @@ def main(argv: list) -> int:
         rest = argv[1:]
         as_json = "--json" in rest
         top_k = 8
-        expansions = []                               # --expand "phrasing" (repeatable)
+        expansions = []                               # --expand "phrasing" (repeatable, IMP-6)
         skip = set()                                  # indices consumed by flags
         for i, a in enumerate(rest):
             if a == "--top" and i + 1 < len(rest):

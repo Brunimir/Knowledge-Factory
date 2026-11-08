@@ -9,6 +9,21 @@ Processes raw inbox notes into atomic Obsidian concept notes following the Feynm
 
 ---
 
+## Before This Command Runs
+
+**Pre-run gate: INDEX FRESHNESS GATE**
+
+1. Read `00_Inbox/VAULT_INDEX.json`
+2. Check the `generated` field: If it is NOT today's date, STOP
+3. Print: `⚠ Index is from {date}. Run generate_index.py first, then retry.`
+4. Do not proceed until the index is regenerated
+
+**State before running:**
+- Confirm scope: "Processing {N} notes from Note Pipe. Which MOCs will be affected?"
+- List any notes that appear structurally incomplete and ask if they should be quarantined before processing
+
+---
+
 ## Authoritative phase definitions
 
 The full Phase 0–5 pipeline rules — classification, audit (including Unflagged acronym + Domain inheritance), build, MOC update, report — live in:

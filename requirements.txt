@@ -1,8 +1,17 @@
 # Python dependencies for the Knowledge Factory
 # Install with: pip install -r requirements.txt
 #
-# Core — needed by generate_index.py (builds VAULT_INDEX.json):
+# Core — needed by generate_index.py (builds VAULT_INDEX.json), and by the
+# capture-fidelity gates that launch-process-inbox.ps1 runs unconditionally
+# before every process-inbox agent invocation (gate_quote_fidelity.py,
+# capture_fidelity.py, overlap_candidates.py):
 PyYAML>=6.0
+rapidfuzz>=3.0     # GATE-KF-13 fuzzy quote matching (gate_quote_fidelity.py)
+numpy>=1.24        # overlap_candidates.py similarity search
+#
+# overlap_candidates.py also imports the vault-retrieval skill's `retrieval`
+# module directly (for its embedding index) — install that skill's deps too
+# (see vault-retrieval below) if you run process-inbox or weave-links.
 #
 # Optional, per-skill (install only if you use that skill). Each ships a
 # hash-locked requirements.lock for a reproducible install:
@@ -11,6 +20,7 @@ PyYAML>=6.0
 #       rapidfuzz, datasketch, networkx   — all vetted PyPI packages;
 #       the former external `graphifyy` dependency was removed (2026-06-20)
 #       and replaced by the local module vault_graph.py.
-#   vault-retrieval (vault-query hybrid retrieval):
+#   vault-retrieval (vault-query hybrid retrieval; also used by
+#   overlap_candidates.py — see above):
 #     pip install --require-hashes -r 99_System/Claude/vault-retrieval/requirements.lock
 #       onnxruntime, tokenizers, numpy    — CPU embeddings, no torch.

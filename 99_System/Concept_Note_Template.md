@@ -1,19 +1,21 @@
 ---
-title: 
-icon: 
+title:
+icon:
 aliases:
   - 
   - 
 type: concept
 status: draft
-description: 
-domain:        # learning | writing | presentations | biology | strategy | multiple | enterprise-architecture
-source_type: 
-created: 
-updated: 
-moc: []          # one or more MOC stems — a concept may belong to several MOCs
-reviewed: false
+description:
+domain:
+source_type:
+created:
+updated:
+moc: []
 flashcards: false
+source_count: 0
+trust: 0.0
+concept_role: study
 tags:
 ---
 ## Core Idea (Summary)
@@ -30,10 +32,12 @@ tags:
 
 ## Links
 - Related: [[]]
-- MoC: [[]]   <!-- list every MOC this concept belongs to; a concept can sit in more than one -->
-
 - Contradicts: [[]]
 - Supports: [[]]
+- Prerequisite-for: [[]]
+- Mechanism-of: [[]]
+- Instance-of: [[]]
+- Mitigates: [[]]
 - Source [[]]
 
 ## Ideas

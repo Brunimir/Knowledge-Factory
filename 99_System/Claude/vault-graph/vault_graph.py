@@ -42,6 +42,8 @@ import networkx as nx
 # VAULT = the repo root. This file lives at
 # <VAULT>/99_System/Claude/vault-graph/vault_graph.py — four parents up.
 VAULT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))   # the repo root: kzn_paths.py
+from kzn_paths import without_twins   # IMP-69: a cloud-sync twin is not a file
 
 CONCEPTS_DIR = VAULT / "20_Learning" / "21_Concepts"
 MOCS_DIR     = VAULT / "20_Learning" / "22_Maps of Content"
@@ -103,7 +105,7 @@ def load_notes(dirs=None) -> dict:
             continue
         for root, subdirs, files in os.walk(d):
             subdirs[:] = [s for s in subdirs if not s.startswith(".")]
-            for fname in files:
+            for fname in without_twins(files):
                 if not fname.endswith(".md"):
                     continue
                 stem = fname[:-3]
