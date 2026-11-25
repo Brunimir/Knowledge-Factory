@@ -24,7 +24,7 @@ Read the first word of the user's message to dispatch:
 
   process-inbox          → run the PKM ingestion pipeline (Phases 0–5)
                            reads from: 00_Inbox\Note Pipe\
-                           writes to:  21_Concepts\, 22_Maps_of_Content\
+                           writes to:  20_Learning\21_Concepts\, 20_Learning\22_Maps of Content\
                            note: a concept's `moc:` field is a LIST — a note may be
                                  mapped into several MOCs; patch every relevant one.
 
@@ -58,7 +58,7 @@ Read the first word of the user's message to dispatch:
                            format: flashcards-obsidian plugin (`- Question :: Answer`, up to 6 per note)
 
   pkm-solution           → draft a Phase 5 artefact (Pattern or Solution)
-                           reads from: 00_Inbox\VAULT_INDEX.json → 21_Concepts\,
+                           reads from: 00_Inbox\VAULT_INDEX.json → 20_Learning\21_Concepts\,
                                        10_Ideas\, 40_Solutions\ (selective; index-first)
                            writes to:  40_Solutions\
                            see skill: 99_System\Claude\pkm-solution\SKILL.md
@@ -113,7 +113,7 @@ Read the first word of the user's message to dispatch:
                            fused with RRF) over a gitignored, rebuildable shadow
                            index. READ-ONLY — never writes a vault note. Cites
                            every claim as [[stem]] and never fabricates.
-                           corpus: 21_Concepts, 22_Maps_of_Content, 40_Solutions,
+                           corpus: 20_Learning\21_Concepts, 20_Learning\22_Maps of Content, 40_Solutions,
                                    10_Ideas (Note Pipe excluded)
                            see skill: 99_System\Claude\vault-retrieval\SKILL.md
 
@@ -256,18 +256,18 @@ WRITE a new file (concept note):
   $content = @'
   {full file content here}
   '@
-  Set-Content -Path "$env:VAULT_ROOT\21_Concepts\Stem_Name.md" `
+  Set-Content -Path "$env:VAULT_ROOT\20_Learning\21_Concepts\Stem_Name.md" `
               -Value $content -Encoding UTF8
 
 APPEND to an existing file (MOC patch):
   $patch = @'
   {patch content here}
   '@
-  Add-Content -Path "$env:VAULT_ROOT\22_Maps_of_Content\MOC_Name.md" `
+  Add-Content -Path "$env:VAULT_ROOT\20_Learning\22_Maps of Content\MOC_Name.md" `
               -Value $patch -Encoding UTF8
 
 PATCH a specific section (replace a line in an existing file):
-  $file = "$env:VAULT_ROOT\22_Maps_of_Content\MOC_Name.md"
+  $file = "$env:VAULT_ROOT\20_Learning\22_Maps of Content\MOC_Name.md"
   $content = Get-Content $file -Raw -Encoding UTF8
   $content = $content -replace 'note_count: \d+', 'note_count: {new_value}'
   Set-Content -Path $file -Value $content -Encoding UTF8

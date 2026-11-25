@@ -15,16 +15,16 @@
   <text x="42" y="112" font-family="'Segoe UI', Arial, sans-serif" font-size="15" font-weight="bold" letter-spacing="1" fill="#8a8275">OWNER</text>
   <text x="42" y="470" font-family="'Segoe UI', Arial, sans-serif" font-size="15" font-weight="bold" letter-spacing="1" fill="#8a8275">STORED IN</text>
 
-  <!-- ===================== Human verification gate (OPTIONAL) ===================== -->
+  <!-- ===================== Human review gate: the recall test before a note is studied ===================== -->
   <line x1="962" y1="66" x2="962" y2="400" stroke="#7a2230" stroke-width="2" stroke-dasharray="7 7" opacity="0.55"/>
-  <text x="962" y="34" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="bold" fill="#7a2230">Human verification</text>
-  <text x="962" y="54" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" font-style="italic" fill="#7a2230" opacity="0.85">— optional —</text>
+  <text x="962" y="34" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="bold" fill="#7a2230">Human review</text>
+  <text x="962" y="54" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" font-style="italic" fill="#7a2230" opacity="0.85">— recall test before study —</text>
 
   <!-- ===================== owner labels ===================== -->
-  <text x="175"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#7a2230">HUMAN</text>
+  <text x="175"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#7a2230">HUMAN <tspan fill="#8a8275">+</tspan> <tspan fill="#2f5d3a">AGENT</tspan></text>
   <text x="490"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT</text>
   <text x="805"  y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT</text>
-  <text x="1120" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#2f5d3a">AGENT <tspan fill="#8a8275">+</tspan> <tspan fill="#7a2230">HUMAN</tspan></text>
+  <text x="1120" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#7a2230">HUMAN <tspan fill="#8a8275">+</tspan> <tspan fill="#2f5d3a">AGENT</tspan></text>
   <text x="1435" y="150" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" font-weight="bold" letter-spacing="1" fill="#7a2230">HUMAN <tspan fill="#8a8275">+</tspan> <tspan fill="#2f5d3a">AGENT</tspan></text>
 
   <!-- ===================== boxes ===================== -->
@@ -46,12 +46,13 @@
   <text x="805" y="274" text-anchor="middle" font-size="30" font-weight="600" fill="#3a332b">Interconnect</text>
   <text x="805" y="309" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#6b6256">Wikilinks &amp; MOCs</text>
 
-  <!-- 04 Retain (agent) — OPTIONAL: dashed border -->
-  <rect x="1005" y="175" width="230" height="210" rx="18" fill="#faf7f1" stroke="#2f5d3a" stroke-width="2.5"/>
+  <!-- 04 Retain (human-led) — the differentiator: tinted fill, heavier border -->
+  <rect x="1005" y="175" width="230" height="210" rx="18" fill="#f6e8e2" stroke="#7a2230" stroke-width="4"/>
+  <text x="1120" y="203" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="bold" letter-spacing="1.5" fill="#7a2230">THE STEP OTHERS LEAVE OUT</text>
   <text x="1120" y="234" text-anchor="middle" font-size="24" fill="#7a2230">04</text>
   <text x="1120" y="272" text-anchor="middle" font-size="30" font-weight="600" fill="#3a332b">Retain</text>
   <text x="1120" y="305" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#6b6256">Anki flashcards</text>
-  <text x="1120" y="333" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="15" font-style="italic" fill="#2f5d3a">(optional)</text>
+  <text x="1120" y="333" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="15" font-style="italic" fill="#7a2230">back into your head</text>
 
   <!-- 05 Produce (agent + human) -->
   <rect x="1320" y="175" width="230" height="210" rx="18" fill="#faf7f1" stroke="#7a2230" stroke-width="2.5"/>
@@ -63,20 +64,19 @@
   <!-- solid backbone -->
   <line x1="296"  y1="282" x2="369"  y2="282" stroke="#b7ae9e" stroke-width="6" stroke-linecap="round" marker-end="url(#arrow)"/>
   <line x1="611"  y1="282" x2="684"  y2="282" stroke="#b7ae9e" stroke-width="6" stroke-linecap="round" marker-end="url(#arrow)"/>
-  <!-- into Retain: optional (dashed) -->
-  <line x1="926"  y1="282" x2="999"  y2="282" stroke="#b7ae9e" stroke-width="6" stroke-linecap="round" stroke-dasharray="3 8" marker-end="url(#arrow)"/>
-  <!-- out of Retain: optional (dashed) -->
-  <line x1="1241" y1="282" x2="1314" y2="282" stroke="#b7ae9e" stroke-width="6" stroke-linecap="round" stroke-dasharray="3 8" marker-end="url(#arrow)"/>
+  <!-- into and out of Retain: part of the backbone (reference-only notes take the bypass arc below) -->
+  <line x1="926"  y1="282" x2="999"  y2="282" stroke="#b7ae9e" stroke-width="6" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <line x1="1241" y1="282" x2="1314" y2="282" stroke="#b7ae9e" stroke-width="6" stroke-linecap="round" marker-end="url(#arrow)"/>
 
-  <!-- bypass arc: Interconnect -> Produce, skipping Retain (OPTIONAL) -->
+  <!-- bypass arc: Interconnect -> Produce, skipping Retain (reference-only notes) -->
   <path d="M805,388 V424 Q805,432 813,432 H1427 Q1435,432 1435,424 V393" fill="none" stroke="#b7ae9e" stroke-width="3" stroke-dasharray="9 7" marker-end="url(#arrow)"/>
   <text x="1120" y="453" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" font-style="italic" fill="#6b6256">skip Retain — when a note is captured for reference only and needs no study</text>
 
   <!-- ===================== stored-in labels ===================== -->
   <text x="175"  y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">00_Inbox/</text>
-  <text x="490"  y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">21_Concepts/</text>
-  <text x="805"  y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">22_Maps_of_Content/</text>
-  <text x="1120" y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">23_FlashCards/</text>
+  <text x="490"  y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">20_Learning/21_Concepts/</text>
+  <text x="805"  y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">20_Learning/22_Maps of Content/</text>
+  <text x="1120" y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">20_Learning/23_FlashCards/</text>
   <text x="1435" y="514" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" font-style="italic" fill="#8a8275">40_Solutions/</text>
 
   <!-- ===================== gem-capture feedback loop (the flywheel) ===================== -->
@@ -86,5 +86,5 @@
 
   <!-- ===================== captions ===================== -->
   <text x="810" y="655" text-anchor="middle" font-size="21" font-style="italic" fill="#5b5347">Each engine has one job, one quality gate, and one place where its output lives.</text>
-  <text x="810" y="683" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="#8a8275">Retain and human verification are optional — a concept may rest unreviewed, and not every note becomes a flashcard.</text>
+  <text x="810" y="683" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="#8a8275">Retain is the step other systems leave out. You choose which notes to study; the rest stay in the vault as reference, never nagged.</text>
 </svg>

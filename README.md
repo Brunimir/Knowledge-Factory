@@ -1,18 +1,57 @@
 # The Knowledge Factory
 
-Introduction Video: https://www.youtube.com/watch?v=BkIc0_dFqwE
+**Don't just store what you learn. Engineer it.**
 
-**An agentic Personal Knowledge Management (PKM) system that turns raw, multi-disciplinary input into durable, interconnected, retrievable knowledge — and tells you exactly how much you can learn without falling behind.**
+Most AI note systems move knowledge out of your head and into a store. The Knowledge Factory is a Claude Code pipeline over an Obsidian vault with a step that moves it back in.
 
-Most note-taking solutions are where information goes to die: you capture more than you ever revisit, connections never form, and nothing reaches long-term memory.
+<a href="https://www.youtube.com/watch?v=BkIc0_dFqwE"><img src="https://i.ytimg.com/vi/BkIc0_dFqwE/maxresdefault.jpg" width="640" alt="Why You Forget What You Learn, and How to Engineer Your Memory with AI (introduction video)"></a>
 
-This system fixes that. It treats knowledge as a *production pipeline*, run by Claude Code over an Obsidian vault — where raw information is broken down into atomic concepts, woven into maps of related ideas, optionally drilled into memory as spaced-repetition flashcards, and composed into reusable solutions.
+▶ **[Why You Forget What You Learn, and How to Engineer Your Memory with AI](https://www.youtube.com/watch?v=BkIc0_dFqwE)**: the introduction video, about 7 minutes.
 
-A built-in capacity model keeps the *learning* load honest. Because concepts can also be captured for reference only — without ever being studied — the vault grows at a pace you can actually retain, and you never become its bottleneck.
+*If you're a student, researcher, or professional trying to learn faster and retain more, the Knowledge Factory is for you.* **Windows-first:** the launchers are PowerShell scripts.
 
-> This repository ships the **engine** — templates, extraction prompts, Claude Code skills, and orchestration scripts. You bring your own Obsidian vault; the system installs *over* it. The only vault content included is **one worked example** (the *Learning & Memory* MOC and its 11 concept notes under `20_Learning/`), so you can see real output.
+---
 
-*If you're a student, researcher, or professional trying to learn faster and retain more — the Knowledge Factory is for you.*
+## Why: memory leaks
+
+Think of something useful you learned six months ago. Could you explain it, out loud, right now? For most of us the honest answer is no, and that is strange, because we understood it at the time.
+
+Memory is a system with an inflow, an outflow and a stock. When you take a course, some of it stays and raises the stock; some of it leaks out. Using an idea strengthens its pathway, and leaving it unused lets it fade (see [Active Recall](20_Learning/21_Concepts/Active_Recall.md) and [Spaced Repetition](20_Learning/21_Concepts/Spaced_Repetition.md) in the worked example). The problem is not "how do I store more". It is that more leaves than enters.
+
+## What's different
+
+None of the pieces are new. The trick is connecting them and pointing them at your head, not just at a folder.
+
+| Approach | What it does | Moves knowledge back into your head? |
+|---|---|---|
+| **Zettelkasten** (Niklas Luhmann) | Links notes together | No |
+| **Second brain** (Tiago Forte) | Captures, organises, distils and expresses notes for action | No |
+| **LLM Wiki** (Andrej Karpathy) | An AI maintains your notes: checks consistency, organises, adds cross-references | No |
+| **Spaced repetition** (e.g. Anki) | Brings each idea back just before you'd forget it | Yes, but only if the content was understood and connected first |
+| **The Knowledge Factory** | Captures and verifies, breaks notes into one-idea concepts, connects them, turns the ones you choose into flashcards, and builds outputs from them | **Yes: the Retain step** |
+
+The first three keep a copy outside your head, and the LLM Wiki takes the upkeep off your hands, which is a real gain. But put AI on every step and your second brain fills up beautifully while the connections in your own head never get built. So the Knowledge Factory gives the agent the admin and keeps the learning with you. The links between notes are not decoration: they are the cues that get you back to an idea.
+
+### Who does what
+
+- **You:** capture; approve each note in a review pass, which asks you to state its core idea from memory; review your flashcards; lead what you produce.
+- **The agent:** checks captures against their sources, writes the one-idea notes, links them into maps of content, generates the flashcards, and drafts outputs from the vault.
+
+Retain is almost all yours, because nobody can remember for you. The agent does the admin that makes it possible.
+
+### One run, end to end
+
+Two sources, say a book and a course. You take notes on each, yourself or with AI, and **Capture** checks them against the source. **Process** breaks the notes into concepts, one idea per note; a concept can draw on both sources, which is where ideas start to meet. **Interconnect** groups the concepts into a map of content, so nothing floats alone. **Retain** turns each concept you choose to study into a few flashcards that come back to you through spaced repetition. And when a real problem comes up, **Produce** starts from the concepts and solutions you already have, not from a blank page.
+
+The repo ships the output of that run for one domain: see [A worked example](#a-worked-example).
+
+### Evidence: run on its author's vault
+
+As of 2026-11-16: 1,102 concept notes, 373 of them approved for study, and about 1,100 flashcards. 728 notes are kept as reference drafts on purpose and never studied.
+
+Agent-written notes can look perfect and still be wrong. 1,060 of them were checked against the sources they cite: **779 faithful, 185 drifted, 38 fabricated, 58 unverifiable**, a 21% defect rate, although every one had passed the format checks. (NotebookLM extraction runs before Claude, so this is not a pure-Claude number.) That audit is why Capture now checks each claim against its source before it can become a note, and why quoted text must match the source file. All 38 fabrications and 181 of the 185 drifts have since been fixed, and the verdicts live in an append-only ledger ([`fidelity_ledger.py`](fidelity_ledger.py)).
+
+> This repository ships the **engine**: templates, extraction prompts, Claude Code skills, and orchestration scripts. You bring your own Obsidian vault; the system installs *over* it. The only vault content included is **one worked example** (the *Learning & Memory* MOC, its 11 concept notes and their flashcards, under `20_Learning/`), so you can see real output.
 
 ---
 
@@ -22,28 +61,28 @@ A built-in capacity model keeps the *learning* load honest. Because concepts can
 
 Knowledge flows through five engines in a continuous loop:
 
-![The five engines of the Knowledge Factory — Capture, Process, Interconnect, Retain (optional), Produce. Human verification is optional, Retain can be skipped for reference-only notes, and a gem-capture loop turns new insights from conversations into fresh input in the inbox.|697](5-engines.svg)
+![The five engines of the Knowledge Factory — Capture, Process, Interconnect, Retain, Produce. Retain, the step other systems leave out, is human-led and follows a human review with a recall test; reference-only notes skip it, and a gem-capture loop turns new insights from conversations into fresh input in the inbox.|697](5-engines.svg)
 
-Raw material enters through **Capture**, is atomised into clean concept notes by **Process**, is related to the rest of the vault by **Interconnect**, is *optionally* committed to long-term memory by **Retain**, and is put to work by **Produce**. Solutions and flashcards in turn surface gaps, which feed the next capture cycle.
+Raw material enters through **Capture**, is atomised into clean concept notes by **Process**, is related to the rest of the vault by **Interconnect**, is committed to long-term memory by **Retain** (for the notes you choose to study), and is put to work by **Produce**. Solutions and flashcards in turn surface gaps, which feed the next capture cycle.
 
 ### 1.2 The five engines
 
 #### 🎣 Capture
 Gets vault-worthy ideas out of conversations and sources and into the inbox, without polluting the vault.
 - **`extract-gems`** — at the end of a substantive Claude conversation, identifies the genuinely vault-worthy "gems" and routes each one: a new candidate, a one-line refinement of an existing note, or *exclude*. Conversation-scoped, so it never runs the full pipeline by accident.
-- **Extraction prompts** — `EXTRACT_PROMPT.md` (after a Claude conversation) and `EXTRACT_PROMPT_NotebookLM.md` (for books/PDFs or other soucres via NotebookLM) define a strict, machine-readable block format: a falsifiable claim, a named mechanism, a boundary condition, an application, and typed edges to other concepts.
+- **Extraction prompts** — `EXTRACT_PROMPT.md` (after a Claude conversation) and `EXTRACT_PROMPT_NotebookLM.md` (for books/PDFs or other sources via NotebookLM) define a strict, machine-readable block format: a falsifiable claim, a named mechanism, a boundary condition, an application, and typed edges to other concepts.
 - **Output:** raw structured notes land in `00_Inbox/` (Note Stock → Note Pipe → AI_Candidates), never directly in the vault.
-- **`verify-capture-fidelity`** (skill: `pkm-capture-verify`) — judges each checkable claim in a capture against its frozen source before it can become a note, writing a faithful/drifted/fabricated/unverifiable verdict; a fabrication caught here costs one Note Pipe edit, versus a Decision after the note is promoted and locked. Runs automatically as the first step of `process-inbox`, so a clean capture pays nothing extra for it.
+- **`verify-capture-fidelity`** (skill: `pkm-capture-verify`) — judges each checkable claim in a capture against its frozen source before it can become a note, writing a faithful/drifted/fabricated/unverifiable verdict; a fabrication caught here costs one Note Pipe edit, not a fix to a note that is already approved and locked. Runs automatically as the first step of `process-inbox`, so a clean capture pays nothing extra for it.
 
 #### ⚙️ Process
 Turns raw inbox notes into atomic, self-contained concept notes.
 - **`process-inbox`** (skill: `pkm-ingestion`) — runs a multi-phase ingestion pipeline (Phases 0–5): validates each note against a quality gate, writes one **atomic concept note** per teachable idea using the Feynman-style template, and surgically patches every relevant **Map of Content** — a concept can belong to more than one MOC (its `moc:` field is a list), so a cross-cutting idea is mapped into each domain it touches.
-- Enforces hard safety rules: never overwrites a note's full content, never invents facts, and never edits a `status: final` note except for two whitelisted patches.
+- Enforces hard safety rules: never overwrites a note's full content, forbids inventing facts (and checks for it, see [Evidence](#evidence-run-on-its-authors-vault)), and never edits a `status: final` note except for three whitelisted patches.
 - **Output:** concept notes in `20_Learning/21_Concepts/`, MOC patches in `20_Learning/22_Maps of Content/`.
 
 #### 🔗 Interconnect
 Makes the vault more than the sum of its notes.
-- **`weave-links`** — a retroactive pass that discovers cross-domain relationships between concepts living in *different* MOCs, recording each edge in the canonical prose-verb format using a closed 7-label epistemic vocabulary (`supports`, `contradicts`, `prerequisite-for`, `instance-of`, `mechanism-of`, `mitigates`, `related-to`), plus 5 optional, curator-authored structural labels (`contains`, `flows-into`, `inherits-to`, `peers-with`, `protects`) for architecture-style MOCs. Run via `launch-weave-links.ps1 -MocStems A B [...]`, which pre-builds a cross-MOC candidate manifest (`overlap_candidates.py weave`) at the *same* calibrated dense-cosine 0.70 floor `process-inbox` uses for its own candidate generation — one shared search, run before the agent starts either way, so the two discovery paths cannot drift to different thresholds. Ownership is partitioned by subject: `process-inbox` may only propose an edge touching a note it just wrote this run, `weave-links` owns every pair that predates the run. The agent still judges every candidate against both notes' actual text (Safety Rule #7) before writing anything — the floor gates *attention*, never the verdict.
+- **`weave-links`** — a retroactive pass that finds relationships between concepts in *different* MOCs and records each as a typed edge, from a closed vocabulary of 7 labels (`supports`, `contradicts`, `prerequisite-for`, `instance-of`, `mechanism-of`, `mitigates`, `related-to`) plus 5 optional structural ones for architecture-style MOCs (`contains`, `flows-into`, `inherits-to`, `peers-with`, `protects`). A similarity search shortlists candidate pairs first (the same search `process-inbox` uses), and the agent then judges each pair against both notes' text before writing anything. Run it with `launch-weave-links.ps1 -MocStems A B [...]`; the threshold and which pass owns which edges are in [`docs/interconnect-pipeline.md`](docs/interconnect-pipeline.md).
 - **`visualise-moc {stem}`** — renders a two-tier Mermaid concept map (overview + cluster detail) for a MOC. **Fully deterministic** — `extract_diagram_candidates.ps1` builds the manifest and `build_diagrams.ps1` renders + patches the MOC; no agent is invoked.
 - **`vault-health`** (skill: `pkm-review`) — surfaces *actionable* notes (final notes still awaiting flashcards), MOC coverage, orphans, flashcard coverage, and acronym/knowledge gaps. Drafts are a valid permanent state and are never nagged — the human is deliberately not the bottleneck.
 
@@ -53,9 +92,9 @@ Locks finalised knowledge into long-term memory through spaced repetition.
 - **Output:** flashcards in `20_Learning/23_FlashCards/`, synced to Anki. (The Capacity Model in §2 bounds how much new material enters Retain each week so the review load stays sustainable.)
 - Anki rides your brain's forgetting curve — resurfacing each card the instant before it would be cleared — so every recall signals "keep this," converting short-lived facts into durable long-term memory.
 
-#### 🚀 Produce (Output Bridge)
-Puts mapped knowledge to work as real-world deliverables. (Canonically the **Output Bridge** / **Phase 5** in `CLAUDE.md` and the `pkm-solution` skill.)
-- **`pkm-solution`** — the Phase 5 "Output Bridge": drafts a **Pattern** (a reusable, abstracted playbook) or a **Solution** (a realised deliverable, optionally with a binary companion), with automatic use-count tracking on the source Patterns.
+#### 🚀 Produce
+Puts mapped knowledge to work as real-world deliverables, built from the concepts already in the vault.
+- **`pkm-solution`** — drafts a **Pattern** (a reusable, abstracted playbook) or a **Solution** (a realised deliverable, optionally with a binary companion), with automatic use-count tracking on the source Patterns.
 - **Output:** artefacts in `40_Solutions/`.
 
 ### 1.3 The command surface
@@ -80,7 +119,7 @@ Claude Code dispatches on the first word of your request. Eight pipeline command
 
 ## 2. The Capacity Model — *how much can you actually retain?*
 
-Capturing knowledge is easy; **retaining** it is the constraint. Spaced repetition only works if the daily review load stays sustainable — so the system models intake against a fixed, honest review budget.
+Capturing knowledge is easy; **retaining** it is the constraint. Spaced repetition only works if the daily review load stays sustainable — so the system models intake against a fixed, honest review budget. In the leaky-bucket terms above, this is the inflow you can sustain.
 
 The whole model reduces to one equation — the **monthly concept-retention capacity** `K`, derived directly from a sustainable daily review budget `D`:
 
@@ -91,7 +130,7 @@ The whole model reduces to one equation — the **monthly concept-retention capa
 | Symbol | Meaning                                           | Recommended value |
 | ------ | ------------------------------------------------- | ----------------- |
 | **D**  | Sustainable daily review load you set (cards/day) | **31**            |
-| **C**  | Cards generated per concept                       | **3**             |
+| **C**  | Cards per concept, on average (the generator allows up to 6) | **3**             |
 | **R**  | Mean reviews per card over its lifetime           | **8**             |
 | **T**  | Days per period                                   | **7** (one week)  |
 | **P**  | Periods per month                                 | **4** (weeks)     |
@@ -123,7 +162,7 @@ A numbered folder taxonomy keeps capture, learning, and output cleanly separated
   └─ 24_Diagrams/        rendered Mermaid concept maps
 30_Sources/          source material (books, PDFs, references)
 40_Solutions/        Patterns and Solutions (knowledge turned into output)
-50_Admin/            vault administration
+60_Admin/            vault administration
 99_System/           templates, prompts, skills, and this system's scaffolding
 ```
 
@@ -131,7 +170,7 @@ A numbered folder taxonomy keeps capture, learning, and output cleanly separated
 
 - **Concept note** — the atomic unit. A single teachable idea in Feynman structure: Core Idea, Mechanism (+ boundary condition), Application (when to use / when *not* to), and typed edges. Carries `status` and `flashcards` flags that gate everything downstream, plus a derived `trust` score (from `source_count`) that reflects how corroborated the claim is.
 - **Map of Content (MOC)** — a living map of one domain: concept clusters, typed relationships, and a Cross-Domain Links section connecting it to other MOCs. A single concept can be mapped into several MOCs at once (its `moc:` field is a list), so cross-cutting ideas surface in every domain they touch.
-  - **Flashcards (+ Anki)** — short one-idea cards, up to 6 per final concept, synced to Anki via the flashcards-obsidian plugin for spaced repetition.
+- **Flashcards (+ Anki)** — short one-idea cards, up to 6 per final concept, synced to Anki via the flashcards-obsidian plugin for spaced repetition.
 - **Solutions** — where knowledge becomes output:
   - **Solution doc** — a realised deliverable built from vault concepts (optionally with a `.pptx`/`.docx`/`.xlsx` companion).
   - **Pattern** — a reusable, abstracted playbook with a tracked use-count.
@@ -167,10 +206,11 @@ rest indefinitely. See [`docs/lifecycle.md`](docs/lifecycle.md) for the full ref
 
 ### A worked example
 
-To show real output — not just empty templates — the repo ships one fully-built domain: the **Learning & Memory** MOC and the 11 atomic concept notes it maps.
+To show real output — not just empty templates — the repo ships one fully-built domain: the **Learning & Memory** MOC, the 11 atomic concept notes it maps, and their flashcards.
 
-- **MOC** — `20_Learning/22_Maps of Content/MOC_Learning_and_Memory.md`: concept clusters, key tensions, cross-domain links, an embedded SVG concept-map, and the typed relationship graph.
+- **MOC** — `20_Learning/22_Maps of Content/MOC_Learning_and_Memory.md`: concept clusters, key tensions, cross-domain links, and the typed relationship graph.
 - **Concepts** — `20_Learning/21_Concepts/`: Active Recall, Chunking, Spaced Repetition, Focused Mode, Diffuse Mode, Interleaving, Sleep and Learning, The Magical Number Seven, Cluster Processing, Information Overload Tax, Process vs Product.
+- **Flashcards** — [`20_Learning/23_FlashCards/Flashcards_MOC_Learning_and_Memory.md`](20_Learning/23_FlashCards/Flashcards_MOC_Learning_and_Memory.md): the Retain step's output, 33 cards (3 per concept). *Earlier format:* they were generated in April 2026 with long answers, before the generator moved to short one-idea cards; new runs produce the short format.
 
 > These are real notes in Obsidian format. On GitHub, `[[wikilinks]]` render as literal text (Obsidian resolves them; GitHub doesn't), and the cross-domain links point to MOCs outside this example.
 
@@ -180,6 +220,7 @@ To show real output — not just empty templates — the repo ships one fully-bu
 
 ### Requirements
 
+- **Windows + PowerShell** — the launchers are PowerShell scripts; Mac and Linux are not supported today.
 - **[Obsidian](https://obsidian.md/)** — the vault host.
 - **[Claude Code](https://claude.com/claude-code)** — the agent that runs the pipeline.
 - **Python 3** — runs `generate_index.py` to build the vault index.
@@ -192,21 +233,17 @@ To show real output — not just empty templates — the repo ships one fully-bu
 ### Install
 
 1. **Clone** this repository.
-   ```bash
-   git clone https://github.com/Brunimir/knowledge-factory.git
+   ```powershell
+   git clone https://github.com/Brunimir/Knowledge-Factory.git
    ```
 2. **Copy the scaffolding into your vault**, preserving structure: place `CLAUDE.md` at your vault root, and the contents of `99_System/` into your vault's `99_System/`. To use the engines as Claude Code slash-commands, also copy `99_System/Claude/<skill>/` into your project's `.claude/skills/`.
-3. **Configure your environment.** Copy the template and fill it in:
-   ```bash
-   cp .env.example .env
+3. **Point the scripts at your vault.** The launchers read three environment variables. Set them in your PowerShell session, or in your PowerShell profile to keep them:
+   ```powershell
+   $env:VAULT_ROOT     = "C:\path\to\your\obsidian\vault"           # if unset, each script uses its own folder
+   $env:OBSIDIAN_VAULT = "YourVaultName"                            # optional: defaults to the vault folder's name
+   $env:ANKI_EXE       = "$env:LOCALAPPDATA\Programs\Anki\anki.exe" # optional: this is the default
    ```
-   ```ini
-   ANTHROPIC_API_KEY=sk-ant-...
-   VAULT_ROOT=C:\path\to\your\obsidian\vault
-   OBSIDIAN_VAULT=YourVaultName
-   ANKI_EXE=%LOCALAPPDATA%\Programs\Anki\anki.exe
-   ```
-   Alternatively, set `VAULT_ROOT` in your shell — every script falls back to its own directory if it's unset.
+   No API key goes in this repo: Claude Code signs in on its own.
 
 ### Usage
 
@@ -237,6 +274,7 @@ A typical weekly cycle: capture during the week → `process-inbox` → review a
 .
 ├─ CLAUDE.md                       # Command interface + safety rules (place at vault root)
 ├─ generate_index.py              # Builds VAULT_INDEX.json from the vault
+├─ kzn_paths.py                   # Resolves the vault root (VAULT_ROOT) for the Python scripts
 ├─ concept_schema_sync.ps1        # Maintains the source_count/trust score on concept notes
 ├─ launch-process-inbox.ps1       # Capture → Process launcher (incl. GATE-KF-13/14 capture-fidelity gates)
 ├─ gate_quote_fidelity.py         # GATE-KF-13: verbatim `quote:` fidelity check
@@ -252,7 +290,7 @@ A typical weekly cycle: capture during the week → `process-inbox` → review a
 ├─ extract_diagram_candidates.ps1  # Pre-extracts the per-MOC diagram manifest
 ├─ extract_flashcard_candidates.ps1# Pre-extracts the flashcard candidate manifest
 ├─ requirements.txt               # Python dependencies (PyYAML/rapidfuzz/numpy core; per-skill locks for the rest)
-├─ .env.example                   # Environment template (copy to .env)
+├─ .env.example                   # Environment variable names (reference only; no script loads it)
 ├─ 99_System/
 │  ├─ Readme.md                   # Core PKM philosophy / global rules
 │  ├─ EXTRACT_PROMPT.md           # Capture: post-conversation extraction spec
@@ -273,6 +311,7 @@ A typical weekly cycle: capture during the week → `process-inbox` → review a
 │  ├─ inbox-pipeline.md           # process-inbox: Phases 0–5
 │  ├─ visualisation-pipeline.md   # visualise-moc: Phases V-0 → V-6
 │  ├─ interconnect-pipeline.md    # weave-links: Phases IC-0 → IC-6
+│  ├─ flashcards-pipeline.md      # generate-flashcards: Phases GF-0 → GF-4
 │  └─ lifecycle.md                # The status/flashcards/trust state machine, in full
 └─ LICENSE
 ```
