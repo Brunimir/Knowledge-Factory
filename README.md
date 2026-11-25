@@ -8,13 +8,11 @@ Most AI note systems move knowledge out of your head and into a store. The Knowl
 
 ▶ **[Why You Forget What You Learn, and How to Engineer Your Memory with AI](https://www.youtube.com/watch?v=BkIc0_dFqwE)**: the introduction video, about 7 minutes.
 
-*If you're a student, researcher, or professional trying to learn faster and retain more, the Knowledge Factory is for you.* **Windows-first:** the launchers are PowerShell scripts.
-
 ---
 
 ## Why: memory leaks
 
-Think of something useful you learned six months ago. Could you explain it, out loud, right now? For most of us the honest answer is no, and that is strange, because we understood it at the time.
+We learn a lot, but we retain little.
 
 Memory is a system with an inflow, an outflow and a stock. When you take a course, some of it stays and raises the stock; some of it leaks out. Using an idea strengthens its pathway, and leaving it unused lets it fade (see [Active Recall](20_Learning/21_Concepts/Active_Recall.md) and [Spaced Repetition](20_Learning/21_Concepts/Spaced_Repetition.md) in the worked example). The problem is not "how do I store more". It is that more leaves than enters.
 
@@ -47,9 +45,9 @@ The repo ships the output of that run for one domain: see [A worked example](#a-
 
 ### Evidence: run on its author's vault
 
-As of 2026-11-16: 1,102 concept notes, 373 of them approved for study, and about 1,100 flashcards. 728 notes are kept as reference drafts on purpose and never studied.
+As of 2026-11-16: 1,102 concept notes, 373 of them approved for study, and about 1,100 flashcards. 728 notes are kept as reference drafts on purpose and not yet studied.
 
-Agent-written notes can look perfect and still be wrong. 1,060 of them were checked against the sources they cite: **779 faithful, 185 drifted, 38 fabricated, 58 unverifiable**, a 21% defect rate, although every one had passed the format checks. (NotebookLM extraction runs before Claude, so this is not a pure-Claude number.) That audit is why Capture now checks each claim against its source before it can become a note, and why quoted text must match the source file. All 38 fabrications and 181 of the 185 drifts have since been fixed, and the verdicts live in an append-only ledger ([`fidelity_ledger.py`](fidelity_ledger.py)).
+Agent-written notes can look perfect and still be wrong. 1,060 of them were checked against the sources they cite: **779 faithful, 185 drifted, 38 fabricated, 58 unverifiable**. Capture now checks each claim against its source before it can become a note, so these defects are prevented, and nearly all the old ones have been fixed.
 
 > This repository ships the **engine**: templates, extraction prompts, Claude Code skills, and orchestration scripts. You bring your own Obsidian vault; the system installs *over* it. The only vault content included is **one worked example** (the *Learning & Memory* MOC, its 11 concept notes and their flashcards, under `20_Learning/`), so you can see real output.
 
@@ -68,7 +66,8 @@ Raw material enters through **Capture**, is atomised into clean concept notes by
 ### 1.2 The five engines
 
 #### 🎣 Capture
-Gets vault-worthy ideas out of conversations and sources and into the inbox, without polluting the vault.
+Gets vault-worthy ideas out of your own notes, conversations and sources and into the inbox, without polluting the vault.
+- **Your own notes** — write a note by hand as a *flying note* with just two fields, `Concept:` and `Why it matters:`. Keep it in `00_Inbox/Note Stock/` while you finish it (your space: the agent never processes it), then move it to `Note Pipe/`, and `process-inbox` turns it into a full concept note.
 - **`extract-gems`** — at the end of a substantive Claude conversation, identifies the genuinely vault-worthy "gems" and routes each one: a new candidate, a one-line refinement of an existing note, or *exclude*. Conversation-scoped, so it never runs the full pipeline by accident.
 - **Extraction prompts** — `EXTRACT_PROMPT.md` (after a Claude conversation) and `EXTRACT_PROMPT_NotebookLM.md` (for books/PDFs or other sources via NotebookLM) define a strict, machine-readable block format: a falsifiable claim, a named mechanism, a boundary condition, an application, and typed edges to other concepts.
 - **Output:** raw structured notes land in `00_Inbox/` (Note Stock → Note Pipe → AI_Candidates), never directly in the vault.
@@ -119,6 +118,8 @@ Claude Code dispatches on the first word of your request. Eight pipeline command
 
 ## 2. The Capacity Model — *how much can you actually retain?*
 
+**With about 31 flashcard reviews a day, you can commit about 36 new concepts a month to memory, roughly 9 a week.** You can capture far more than that: the budget only limits what you study, because reference notes need no flashcards.
+
 Capturing knowledge is easy; **retaining** it is the constraint. Spaced repetition only works if the daily review load stays sustainable — so the system models intake against a fixed, honest review budget. In the leaky-bucket terms above, this is the inflow you can sustain.
 
 The whole model reduces to one equation — the **monthly concept-retention capacity** `K`, derived directly from a sustainable daily review budget `D`:
@@ -140,9 +141,7 @@ The whole model reduces to one equation — the **monthly concept-retention capa
 
 The weekly lever falls out as `K / P` ≈ **9 new concepts/week**.
 
-**This budget bounds *learning*, not crystallisation.** You can capture and crystallise far more than 36 concepts a month — reference notes need no flashcards. The budget governs only what you commit to memory.
-
-Push *learning* past it and the daily review load climbs above budget. The model makes that trade-off explicit instead of letting the backlog grow silently — and tuning `C`, `R`, or `D` moves the capacity with it.
+Push *learning* past the budget and the daily review load climbs above it. The model makes that trade-off explicit instead of letting the backlog grow silently — and tuning `C`, `R`, or `D` moves the capacity with it.
 
 ---
 
@@ -177,12 +176,14 @@ A numbered folder taxonomy keeps capture, learning, and output cleanly separated
 
 ### The artefact lifecycle
 
-Every knowledge artefact moves through **one consistent lifecycle** — the same two
-flags gate a concept, a MOC, a Pattern, and a Solution alike, so there is only one
-state machine to learn:
+Every knowledge artefact moves through **one consistent lifecycle**. `status` gates a
+concept, a MOC, a Pattern, and a Solution alike. Only concept notes take the second
+step: flashcards are generated from concept notes alone, never from a MOC, a Pattern
+or a Solution.
 
 ```
-draft  ──(human review pass)──▶  final + flashcards:false  ──(generate-flashcards / opt-out)──▶  final + flashcards:true
+MOC, Pattern, Solution:  draft  ──(human review pass)──▶  final
+Concept note:            draft  ──(human review pass)──▶  final + flashcards:false  ──(generate-flashcards / opt-out)──▶  final + flashcards:true
 ```
 
 - **`status: draft`** — the resting state for everything the agent writes and most of
@@ -193,7 +194,7 @@ draft  ──(human review pass)──▶  final + flashcards:false  ──(gene
   resolves, and at least one real application is named. The agent **never** sets `final`
   on its own, and never edits a `final` note except three whitelisted patches (flashcards,
   the `updated` date bump, and the trust-score patch below).
-- **`flashcards`** — flips to `true` when cards are generated *or* when you deliberately
+- **`flashcards`** (concept notes only) — flips to `true` when cards are generated *or* when you deliberately
   opt a note out of studying ("reviewed, no need to study"). A note is eligible for
   `generate-flashcards` only when `status: final AND flashcards: false`.
 - **`trust`** — derived from `source_count` (how many sources back the note) by

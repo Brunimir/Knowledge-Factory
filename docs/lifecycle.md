@@ -2,8 +2,9 @@
 
 Every artefact in the Knowledge Factory — a concept note, a Map of Content, a Pattern,
 a Solution — moves through **one consistent lifecycle**. There is a single state machine
-to learn, governed by two frontmatter flags (plus a derived trust score for concept
-notes), and it is deliberately built so the **human is never the bottleneck**.
+to learn, governed by two frontmatter flags (`status` on every artefact, `flashcards` on
+concept notes only, plus a derived trust score for concept notes), and it is deliberately
+built so the **human is never the bottleneck**.
 
 This is the reference for that lifecycle. The README §3 has the one-paragraph summary;
 this document is the full version.
@@ -15,10 +16,12 @@ this document is the full version.
 | Flag | Values | Who sets it | What it gates |
 |---|---|---|---|
 | `status` | `draft` → `final` | agent writes `draft`; **human** promotes to `final` | whether downstream engines may treat the note as locked, citable knowledge |
-| `flashcards` | `false` → `true` | `generate-flashcards`, **or** the human (opt-out) | whether spaced-repetition cards have been generated (or deliberately skipped) |
+| `flashcards` (concept notes only) | `false` → `true` | `generate-flashcards`, **or** the human (opt-out) | whether spaced-repetition cards have been generated (or deliberately skipped) |
 
-That is the whole vocabulary. The same two flags mean the same thing on every artefact
-type — a Pattern is `draft` for the same reason a concept note is.
+That is the whole vocabulary. `status` means the same thing on every artefact type — a
+Pattern is `draft` for the same reason a concept note is. `flashcards` exists only on
+concept notes: cards are generated from concept notes alone, never from a MOC, a Pattern
+or a Solution, so those end their lifecycle at `status: final`.
 
 (An earlier version of this system also carried a `reviewed` flag between `status` and
 `flashcards`. It was retired: `reviewed: true` never occurred without `status: final`, so
@@ -65,6 +68,8 @@ are visibly different, even though both can be `status: final`.
             status: final
             flashcards: true       ◀── terminal; never regenerated, never flagged
 ```
+
+The last step is for concept notes only. A MOC, a Pattern or a Solution ends at `status: final`.
 
 ### `status: draft` — the resting state
 
