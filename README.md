@@ -47,7 +47,7 @@ The repo ships the output of that run for one domain: see [A worked example](#a-
 
 As of 2026-11-16: 1,102 concept notes, 373 of them approved for study, and about 1,100 flashcards. 728 notes are kept as reference drafts on purpose and not yet studied.
 
-Agent-written notes can look perfect and still be wrong. 1,060 of them were checked against the sources they cite: **779 faithful, 185 drifted, 38 fabricated, 58 unverifiable**. Capture now checks each claim against its source before it can become a note, so these defects are prevented, and nearly all the old ones have been fixed.
+Every concept in the vault is systematically checked against its source.
 
 > This repository ships the **engine**: templates, extraction prompts, Claude Code skills, and orchestration scripts. You bring your own Obsidian vault; the system installs *over* it. The only vault content included is **one worked example** (the *Learning & Memory* MOC, its 11 concept notes and their flashcards, under `20_Learning/`), so you can see real output.
 
